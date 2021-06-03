@@ -7,29 +7,35 @@
 void test_dbscan()
 {
     std::vector<Hit*> hits;
-    hits.push_back(new Hit(83, 101, 1, 1));
-    hits.push_back(new Hit(26, 103, 1, 1));
-    hits.push_back(new Hit(53, 104, 1, 1));
-    hits.push_back(new Hit(61, 105, 1, 1));
-    hits.push_back(new Hit(68, 106, 1, 1));
-    hits.push_back(new Hit(73, 107, 1, 1));
-    hits.push_back(new Hit(79, 108, 1, 1));
-    hits.push_back(new Hit(80, 109, 1, 1));
-    hits.push_back(new Hit(87, 110, 1, 1));
+    hits.push_back(new Hit(8.3, 101));
+    hits.push_back(new Hit(2.6, 103));
+    hits.push_back(new Hit(5.3, 104));
+    hits.push_back(new Hit(6.1, 105));
+    hits.push_back(new Hit(6.8, 106));
+    hits.push_back(new Hit(7.3, 107));
+    hits.push_back(new Hit(7.9, 108));
+    hits.push_back(new Hit(8.0, 109));
+    hits.push_back(new Hit(8.7, 110));
 
 
-    hits.push_back(new Hit(161, 105, 1, 1));
-    hits.push_back(new Hit(168, 106, 1, 1));
-    hits.push_back(new Hit(173, 107, 1, 1));
-    hits.push_back(new Hit(179, 108, 1, 1));
-    hits.push_back(new Hit(180, 109, 1, 1));
-    hits.push_back(new Hit(187, 110, 1, 1));
+    hits.push_back(new Hit(16.1, 105));
+    hits.push_back(new Hit(16.8, 106));
+    hits.push_back(new Hit(17.3, 107));
+    hits.push_back(new Hit(17.9, 108));
+    hits.push_back(new Hit(18.0, 109));
+    hits.push_back(new Hit(18.7, 110));
 
 
     TStopwatch ts;
     dbscan_orig(hits, 5, 2);
-
     ts.Stop();
     ts.Print();
     draw_clusters(hits);
+
+    std::vector<Hit*> hits_sorted(hits);
+    std::sort(hits.begin(), hits.end(), [](Hit* a, Hit* b) { return a->time < b->time; });
+    dbscan_sorted_input(hits_sorted, 5, 2);
+    draw_clusters(hits_sorted);
+
+    
 }
