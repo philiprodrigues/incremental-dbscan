@@ -125,7 +125,7 @@ std::vector<std::vector<Hit*> > dbscan_orig(std::vector<Hit*>& hits, float eps, 
 //======================================================================
 
 // Find the neighbours of hit q, assuming that the hits vector is sorted by time
-int neighbours_sorted(const std::vector<Hit*>& hits, const Hit& q, float eps, std::vector<Hit*>& ret)
+int neighbours_sorted1(const std::vector<Hit*>& hits, const Hit& q, float eps, std::vector<Hit*>& ret)
 {
     ret.clear();
     auto time_comp_lower=[](const Hit* hit, const float t) { return hit->time < t; };
@@ -136,6 +136,19 @@ int neighbours_sorted(const std::vector<Hit*>& hits, const Hit& q, float eps, st
         if(manhattanDist(*(*hit_it), q)<=eps){
             ret.push_back(*hit_it);
         }
+    }
+    return ret.size();
+}
+
+// Find the neighbours of hit q, assuming that the hits vector is sorted by time
+int neighbours_sorted(const std::vector<Hit*>& hits, const Hit& q, float eps, std::vector<Hit*>& ret)
+{
+    ret.clear();
+    for(auto hit_it=hits.rbegin(); hit_it!=hits.rend(); ++hit_it){
+        if(manhattanDist(*(*hit_it), q)<=eps){
+            ret.push_back(*hit_it);
+        }
+        if((*hit_it)->time < q.time - eps) break;
     }
     return ret.size();
 }
