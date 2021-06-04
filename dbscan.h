@@ -125,11 +125,10 @@ std::vector<std::vector<Hit*> > dbscan_orig(std::vector<Hit*>& hits, float eps, 
 //======================================================================
 
 // Find the neighbours of hit q, assuming that the hits vector is sorted by time
-std::vector<Hit*> neighbours_sorted(const std::vector<Hit*>& hits, const Hit& q, float eps)
+int neighbours_sorted(const std::vector<Hit*>& hits, const Hit& q, float eps, std::vector<Hit*>& ret)
 {
-    std::vector<Hit*> ret;
+    ret.clear();
     auto time_comp_lower=[](const Hit* hit, const float t) { return hit->time < t; };
-
     auto start_it=std::lower_bound(hits.begin(), hits.end(), q.time - eps, time_comp_lower);
     auto end_it=std::lower_bound(hits.begin(), hits.end(), q.time + eps, time_comp_lower);
     // std::cout << hits.size() << " " << std::distance(hits.begin(), start_it) << " " << std::distance(hits.begin(), end_it) << std::endl;
@@ -138,6 +137,15 @@ std::vector<Hit*> neighbours_sorted(const std::vector<Hit*>& hits, const Hit& q,
             ret.push_back(*hit_it);
         }
     }
+    return ret.size();
+}
+
+
+// Find the neighbours of hit q, assuming that the hits vector is sorted by time
+std::vector<Hit*> neighbours_sorted(const std::vector<Hit*>& hits, const Hit& q, float eps)
+{
+    std::vector<Hit*> ret;
+    neighbours_sorted(hits, q, eps, ret);
     return ret;
 }
 
@@ -222,13 +230,14 @@ struct Cluster
 struct State
 {
     std::vector<Hit*> hits; // All the hits we've seen so far, in time order
+    std::vector<Hit*> old_hits; // Hits that are part of completed clusters
     float latest_time{0}; // The latest time of a hit in the vector of hits
     int last_processed_index{0}; // The last index in `hits` that we processed
     std::vector<Cluster> clusters;
 };
 
 //======================================================================
-void cluster_reachable(State& state, std::vector<Hit*> seedSet, Cluster& cluster, float eps, unsigned int minPts)
+void cluster_reachable(State& state, std::vector<Hit*> seedSet, Cluster& cluster, float eps, unsigned int minPts, std::vector<Hit*>& nbr)
 {
     // std::cout << "        cluster_reachable with seedSet size " << seedSet.size() << " cluster " << cluster.index << " with initial size " << cluster.hits.size() << std::endl;
     // Loop over all neighbours (and the neighbours of core points, and so on)
@@ -251,11 +260,11 @@ void cluster_reachable(State& state, std::vector<Hit*> seedSet, Cluster& cluster
         cluster.add_hit(q);
         // std::cout << "        cluster " << cluster.index << " now has size " << cluster.hits.size() << std::endl;
         // Neighbours of q
-        std::vector<Hit*> nbrq=neighbours_sorted(state.hits, *q, eps);
+        neighbours_sorted(state.hits, *q, eps, nbr);
         // If q is a core point, add its neighbours to the search list
-        if(nbrq.size()>=minPts){
+        if(nbr.size()>=minPts){
             q->connectedness=Connectedness::kCore;
-            seedSet.insert(seedSet.end(), nbrq.begin(), nbrq.end());
+            seedSet.insert(seedSet.end(), nbr.begin(), nbr.end());
             // std::cout << "        hit (" << q->time << ", " << q->chan << ") has " << nbrq.size() << " neighbours, so is core" << std::endl;
         }
         else{
@@ -270,6 +279,9 @@ void cluster_reachable(State& state, std::vector<Hit*> seedSet, Cluster& cluster
 void dbscan_partial_add_one(State& state, Hit* hit, float eps, unsigned int minPts)
 {
     static int ncall=0;
+    static std::vector<Hit*> nbr;
+    if(ncall==0) nbr.reserve(1024);
+    
     // std::cout << ncall << " Adding hit (" << hit->time << ", " << hit->chan << ")" << std::endl;
     
     state.hits.push_back(hit);
@@ -290,7 +302,7 @@ void dbscan_partial_add_one(State& state, Hit* hit, float eps, unsigned int minP
             
             if(completed_this_iteration || h->connectedness==Connectedness::kCore){
                 // std::cout << "        Calling cluster_reachable for hit (" << hit->time << ", " << hit->chan << ")" << std::endl;
-                std::vector<Hit*> nbr=neighbours_sorted(state.hits, *h, eps);
+                neighbours_sorted(state.hits, *h, eps, nbr);
 
                 if(nbr.size()>=minPts){
                     h->connectedness=Connectedness::kCore;
@@ -302,7 +314,7 @@ void dbscan_partial_add_one(State& state, Hit* hit, float eps, unsigned int minP
                             seedSet.push_back(n);
                         }
                     }
-                    cluster_reachable(state, seedSet, cluster, eps, minPts);
+                    cluster_reachable(state, seedSet, cluster, eps, minPts, nbr);
                     // std::cout << "    After cluster_reachable, cluster " << cluster.index << " has size " << cluster.hits.size() << std::endl;
                 }
             }
@@ -314,7 +326,7 @@ void dbscan_partial_add_one(State& state, Hit* hit, float eps, unsigned int minP
     }
 
     if(hit->connectedness==Connectedness::kUndefined){
-        std::vector<Hit*> nbr=neighbours_sorted(state.hits, *hit, eps);
+        neighbours_sorted(state.hits, *hit, eps, nbr);
         if(nbr.size()<minPts){
             // hit->connectedness=Connectedness::kNoise;
         }
@@ -335,18 +347,47 @@ void dbscan_partial_add_one(State& state, Hit* hit, float eps, unsigned int minP
                     seedSet.push_back(n);
                 }
             }
-            cluster_reachable(state, seedSet, state.clusters.back(), eps, minPts);
+            cluster_reachable(state, seedSet, state.clusters.back(), eps, minPts, nbr);
         }
     }
 
+    // // Every so often, remove the hits from completed clusters from consideration, and too-old noise hits
+    // if(ncall%1024==0){
+    //     size_t norig=state.hits.size();
+    //     for(Cluster& cluster : state.clusters){
+    //         if(cluster.completeness==Completeness::kComplete){
+    //             for(Hit* h : cluster.hits){
+    //                 state.old_hits.push_back(h);
+    //                 auto time_comp_lower=[](const Hit* hit, const float t) { return hit->time < t; };
+    //                 auto start_it=std::lower_bound(state.hits.begin(), state.hits.end(), h->time, time_comp_lower);
+    //                 do{
+    //                     if(*start_it==h) state.hits.erase(start_it);
+    //                 } while((*start_it)->time < h->time);
+    //             }
+    //         }
+    //     }
+
+    //     for (auto it = state.hits.begin(); it != state.hits.end() && (*it)->time < state.latest_time - 100*eps; ) {
+    //         if ((*it)->connectedness==Connectedness::kNoise || (*it)->connectedness==Connectedness::kUndefined) {
+    //             state.old_hits.push_back(*it);
+    //             it = state.hits.erase(it);
+    //         } else {
+    //             ++it;
+    //         }
+    //     }
+
+    //     size_t nafter=state.hits.size();
+    //     std::cout << "Cleaned up " << (norig-nafter) << " hits out of " << norig << std::endl;
+    // }
+    
     ++ncall;
 }
 
 //======================================================================
-void draw_clusters(const std::vector<Hit*>& hits)
+TCanvas* draw_clusters(const std::vector<Hit*>& hits)
 {
-    if(hits.empty()) return;
-    new TCanvas;
+    if(hits.empty()) return nullptr;
+    TCanvas* c=new TCanvas;
     const int nColours=6;
     int colours[nColours]={kRed, kBlue, kGreen+2, kMagenta+2, kOrange+2, kCyan+2};
     TGraph* grAll=new TGraph;
@@ -379,6 +420,8 @@ void draw_clusters(const std::vector<Hit*>& hits)
     for(auto const& gr: grs){
         gr.second->Draw("p");
     }
+
+    return c;
 }
 
 #endif

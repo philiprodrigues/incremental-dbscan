@@ -4,6 +4,7 @@
 #include <thread>
 #include <chrono>
 #include <fstream>
+#include <string>
 
 std::vector<Hit*> get_hits(std::string name)
 {
@@ -37,27 +38,21 @@ std::vector<Hit*> get_hits(std::string name)
     return hits;
 }
 
-void test_dbscan(const char* filename)
+void test_dbscan(const char* filename, bool test)
 {
     auto hits=get_hits(filename);
 
-    TStopwatch ts;
-    // dbscan_orig(hits, 5, 2);
-    // ts.Stop();
-    // ts.Print();
-    // draw_clusters(hits);
-
+    if(test){
+        dbscan_orig(hits, 5, 2);
+        TCanvas* c=draw_clusters(hits);
+        c->Print("dbscan-orig.png");
+    }
+    
     std::vector<Hit*> hits_sorted(hits);
     std::sort(hits.begin(), hits.end(), [](Hit* a, Hit* b) { return a->time < b->time; });
-    // for(auto h: hits_sorted) h->cluster=kUndefined;
-    // dbscan_sorted_input(hits_sorted, 5, 2);
-    // draw_clusters(hits_sorted);
-
     for(auto h: hits_sorted) h->cluster=kUndefined;
     
     State state;
-    ts.Reset();
-    ts.Start();
     for(auto h: hits_sorted){
         dbscan_partial_add_one(state, h, 5, 2);
     }
@@ -65,18 +60,19 @@ void test_dbscan(const char* filename)
     // Give it a far-future hit so it goes through all of the hits
     Hit future_hit(10000, 110);
     dbscan_partial_add_one(state, &future_hit, 5, 2);
-    ts.Print();
-    // draw_clusters(hits_sorted);
-    
+    if(test){
+        TCanvas* c=draw_clusters(hits_sorted);
+        c->Print("dbscan-incremental.png");
+    }
 }
 
 int main(int argc, char** argv)
 {
-    if(argc!=2){
-        std::cout << "Usage: run_dbscan input_file" << std::endl;
+    if(argc<2){
+        std::cout << "Usage: run_dbscan input_file [test]" << std::endl;
         return 1;
     }
-    test_dbscan(argv[1]);
+    test_dbscan(argv[1], argc>=3);
     return 0;
 }
 
