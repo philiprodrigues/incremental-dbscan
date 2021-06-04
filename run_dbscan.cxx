@@ -41,10 +41,13 @@ std::vector<Hit*> get_hits(std::string name)
 
 void test_dbscan(const char* filename, bool test)
 {
+    const int minPts=2;
+    const float eps=10;
+    
     auto hits=get_hits(filename);
 
     if(test){
-        dbscan_orig(hits, 5, 2);
+        dbscan_orig(hits, eps, minPts);
         TCanvas* c=draw_clusters(hits);
         c->Print("dbscan-orig.png");
     }
@@ -54,13 +57,15 @@ void test_dbscan(const char* filename, bool test)
     for(auto h: hits_sorted) h->cluster=kUndefined;
     
     State state;
+    TStopwatch ts;
     for(auto h: hits_sorted){
-        dbscan_partial_add_one(state, h, 5, 2);
+        dbscan_partial_add_one(state, h, eps, minPts);
     }
 
     // Give it a far-future hit so it goes through all of the hits
     Hit future_hit(10000, 110);
-    dbscan_partial_add_one(state, &future_hit, 5, 2);
+    dbscan_partial_add_one(state, &future_hit, eps, minPts);
+    ts.Print();
     if(test){
         TCanvas* c=draw_clusters(hits_sorted);
         c->Print("dbscan-incremental.png");
@@ -71,14 +76,17 @@ int main(int argc, char** argv)
 {
     int dummy_argc=1;
     const char* dummy_argv[]={"foo"};
-    TRint app("foo", &dummy_argc, const_cast<char**>(dummy_argv));
+    TRint* app=nullptr;
+    bool test=argc>=3;
+    if(test) app=new TRint("foo", &dummy_argc, const_cast<char**>(dummy_argv));
 
     if(argc<2){
         std::cout << "Usage: run_dbscan input_file [test]" << std::endl;
         return 1;
     }
-    test_dbscan(argv[1], argc>=3);
-    app.Run();
+    test_dbscan(argv[1], test);
+    if(test) app->Run();
+    delete app;
     return 0;
 }
 
