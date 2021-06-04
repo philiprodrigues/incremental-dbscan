@@ -65,7 +65,11 @@ void test_dbscan(const char* filename, bool test)
     // Give it a far-future hit so it goes through all of the hits
     Hit future_hit(10000, 110);
     dbscan_partial_add_one(state, &future_hit, eps, minPts);
-    ts.Print();
+    ts.Stop();
+    // Clock is 50 MHz, but we divided the time by 100 when we read in the hits
+    double data_time=(hits_sorted.back()->time - hits_sorted.front()->time)/50e4;
+    double processing_time=ts.RealTime();
+    std::cout << "Processed " << hits_sorted.size() << " hits representing " << data_time << "s of data in " << processing_time << "s. Ratio=" << (data_time/processing_time) << std::endl;
     if(test){
         TCanvas* c=draw_clusters(hits_sorted);
         c->Print("dbscan-incremental.png");
