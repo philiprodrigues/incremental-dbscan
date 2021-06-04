@@ -1,5 +1,6 @@
 #include "dbscan.h"
 #include "TStopwatch.h"
+#include "TRint.h"
 
 #include <thread>
 #include <chrono>
@@ -68,11 +69,16 @@ void test_dbscan(const char* filename, bool test)
 
 int main(int argc, char** argv)
 {
+    int dummy_argc=1;
+    const char* dummy_argv[]={"foo"};
+    TRint app("foo", &dummy_argc, const_cast<char**>(dummy_argv));
+
     if(argc<2){
         std::cout << "Usage: run_dbscan input_file [test]" << std::endl;
         return 1;
     }
     test_dbscan(argv[1], argc>=3);
+    app.Run();
     return 0;
 }
 
