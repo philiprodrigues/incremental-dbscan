@@ -306,14 +306,22 @@ void dbscan_partial_add_one(State& state, Hit* hit, float eps, unsigned int minP
             continue;
         }
         // std::cout << "    Looping over " << cluster.hits.size() << " hits in cluster " << cluster.index << std::endl;
+        Hit* latest_core_point=nullptr;
         for(Hit* h : cluster.hits){
+
+            if(h->connectedness == Connectedness::kCore){
+                if(!latest_core_point || h->time > latest_core_point->time){
+                    latest_core_point=h;
+                }
+            }
+            
             bool completed_this_iteration=h->completeness==Completeness::kIncomplete && h->time < state.latest_time - eps;
             if(completed_this_iteration){
                 // std::cout << "        Hit (" << hit->time << ", " << hit->chan << ") is now complete" << std::endl;
                 h->completeness=Completeness::kComplete;
             }
             
-            if(completed_this_iteration || h->connectedness==Connectedness::kCore){
+            if(completed_this_iteration){
                 // std::cout << "        Calling cluster_reachable for hit (" << hit->time << ", " << hit->chan << ")" << std::endl;
                 neighbours_sorted(state.hits, *h, eps, nbr);
 
@@ -328,10 +336,20 @@ void dbscan_partial_add_one(State& state, Hit* hit, float eps, unsigned int minP
                         }
                     }
                     cluster_reachable(state, seedSet, cluster, eps, minPts, nbr);
-                    // std::cout << "    After cluster_reachable, cluster " << cluster.index << " has size " << cluster.hits.size() << std::endl;
+                    // std::cout << "    After cluster_reachable, cluster " << cluster.index << " has size " << cluster.hits.sizge() << std::endl;
                 }
             }
         }
+
+        neighbours_sorted(state.hits, *latest_core_point, eps, nbr);
+        std::vector<Hit*> seedSet;
+        for(auto const& n: nbr){
+            if(n!=latest_core_point){
+                seedSet.push_back(n);
+            }
+        }
+        cluster_reachable(state, seedSet, cluster, eps, minPts, nbr);
+        
         if(cluster.latest_time < state.latest_time - eps){
             // std::cout << "    cluster " << cluster.index << " is complete. cluster latest_time is " << cluster.latest_time << ", global latest_time is " << state.latest_time << std::endl;
             cluster.completeness=Completeness::kComplete;
@@ -415,7 +433,7 @@ TCanvas* draw_clusters(const std::vector<Hit*>& hits)
                 gr->SetMarkerColor(kGray);
             }
             else if(hit->cluster==kUndefined){
-                gr->SetMarkerColor(kGray+2);
+                gr->SetMarkerColor(kGray);
                 gr->SetMarkerStyle(2);
             }
             else{
