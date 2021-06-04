@@ -48,7 +48,7 @@ float manhattanDist(const Hit& p, const Hit& q)
 }
 
 //======================================================================
-std::vector<Hit*> neighbours(const vector<Hit*>& hits, const Hit& q, float eps)
+std::vector<Hit*> neighbours(const std::vector<Hit*>& hits, const Hit& q, float eps)
 {
     std::vector<Hit*> ret;
     for(auto const& hit: hits){
@@ -63,7 +63,7 @@ std::vector<Hit*> neighbours(const vector<Hit*>& hits, const Hit& q, float eps)
 //
 // The original DBSCAN algorithm, transcribed from Wikipedia. Makes no
 // assumptions on the sorting or otherwise of the input hits vector
-std::vector<std::vector<Hit*> > dbscan_orig(vector<Hit*>& hits, float eps, unsigned int minPts)
+std::vector<std::vector<Hit*> > dbscan_orig(std::vector<Hit*>& hits, float eps, unsigned int minPts)
 {
     std::vector<std::vector<Hit*> > ret;
 
@@ -125,7 +125,7 @@ std::vector<std::vector<Hit*> > dbscan_orig(vector<Hit*>& hits, float eps, unsig
 //======================================================================
 
 // Find the neighbours of hit q, assuming that the hits vector is sorted by time
-std::vector<Hit*> neighbours_sorted(const vector<Hit*>& hits, const Hit& q, float eps)
+std::vector<Hit*> neighbours_sorted(const std::vector<Hit*>& hits, const Hit& q, float eps)
 {
     std::vector<Hit*> ret;
     auto time_comp_lower=[](const Hit* hit, const float t) { return hit->time < t; };
@@ -144,7 +144,7 @@ std::vector<Hit*> neighbours_sorted(const vector<Hit*>& hits, const Hit& q, floa
 //======================================================================
 //
 // Modified DBSCAN algorithm that assumes the input is sorted by time
-std::vector<std::vector<Hit*> > dbscan_sorted_input(vector<Hit*>& hits, float eps, unsigned int minPts)
+std::vector<std::vector<Hit*> > dbscan_sorted_input(std::vector<Hit*>& hits, float eps, unsigned int minPts)
 {
     std::vector<std::vector<Hit*> > ret;
 
@@ -343,7 +343,7 @@ void dbscan_partial_add_one(State& state, Hit* hit, float eps, unsigned int minP
 }
 
 //======================================================================
-void draw_clusters(const vector<Hit*>& hits)
+void draw_clusters(const std::vector<Hit*>& hits)
 {
     if(hits.empty()) return;
     new TCanvas;

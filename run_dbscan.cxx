@@ -42,10 +42,10 @@ void test_dbscan(const char* filename)
     auto hits=get_hits(filename);
 
     TStopwatch ts;
-    dbscan_orig(hits, 5, 2);
-    ts.Stop();
-    ts.Print();
-    draw_clusters(hits);
+    // dbscan_orig(hits, 5, 2);
+    // ts.Stop();
+    // ts.Print();
+    // draw_clusters(hits);
 
     std::vector<Hit*> hits_sorted(hits);
     std::sort(hits.begin(), hits.end(), [](Hit* a, Hit* b) { return a->time < b->time; });
@@ -66,8 +66,18 @@ void test_dbscan(const char* filename)
     Hit future_hit(10000, 110);
     dbscan_partial_add_one(state, &future_hit, 5, 2);
     ts.Print();
-    draw_clusters(hits_sorted);
+    // draw_clusters(hits_sorted);
     
+}
+
+int main(int argc, char** argv)
+{
+    if(argc!=2){
+        std::cout << "Usage: run_dbscan input_file" << std::endl;
+        return 1;
+    }
+    test_dbscan(argv[1]);
+    return 0;
 }
 
 // Local Variables:
