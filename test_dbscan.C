@@ -37,9 +37,9 @@ std::vector<Hit*> get_hits(std::string name)
     return hits;
 }
 
-void test_dbscan()
+void test_dbscan(const char* filename)
 {
-    auto hits=get_hits("felix501_off_30.txt");
+    auto hits=get_hits(filename);
 
     TStopwatch ts;
     dbscan_orig(hits, 5, 2);
@@ -54,7 +54,10 @@ void test_dbscan()
     // draw_clusters(hits_sorted);
 
     for(auto h: hits_sorted) h->cluster=kUndefined;
+    
     State state;
+    ts.Reset();
+    ts.Start();
     for(auto h: hits_sorted){
         dbscan_partial_add_one(state, h, 5, 2);
     }
@@ -62,6 +65,7 @@ void test_dbscan()
     // Give it a far-future hit so it goes through all of the hits
     Hit future_hit(10000, 110);
     dbscan_partial_add_one(state, &future_hit, 5, 2);
+    ts.Print();
     draw_clusters(hits_sorted);
     
 }

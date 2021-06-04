@@ -5,6 +5,7 @@
 #include <map>
 #include <iostream>
 #include <algorithm> // For std::lower_bound
+#include <set>
 
 #include "TGraph.h"
 #include "TCanvas.h"
@@ -13,16 +14,31 @@
 const int kNoise=-2;
 const int kUndefined=-1;
 
+enum class Connectedness
+{
+    kUndefined,
+    kNoise,
+    kCore,
+    kEdge
+};
+
+enum class Completeness
+{
+    kIncomplete,
+    kComplete,
+};
+
 //======================================================================
 struct Hit
 {
     Hit(float _time, int _chan)
-        : time(_time), chan(_chan), cluster(kUndefined), is_core(false), needs_cluster_reachable(false)
+        : time(_time), chan(_chan), cluster(kUndefined), connectedness(Connectedness::kUndefined), completeness(Completeness::kIncomplete)
         {}
 
     float time;
     int chan, cluster;
-    bool is_core, needs_cluster_reachable;
+    Connectedness connectedness;
+    Completeness completeness;
 };
 
 //======================================================================
@@ -98,11 +114,11 @@ std::vector<std::vector<Hit*> > dbscan_orig(vector<Hit*>& hits, float eps, unsig
     }
 
     // Put the noise hits in their own clusters
-    for(auto& p: hits){
-        if(p->cluster==kNoise){
-            ret.push_back({p});
-        }
-    }
+    // for(auto& p: hits){
+    //     if(p->cluster==kNoise){
+    //         ret.push_back({p});
+    //     }
+    // }
     return ret;
 }
 
@@ -187,45 +203,63 @@ std::vector<std::vector<Hit*> > dbscan_sorted_input(vector<Hit*>& hits, float ep
     return ret;
 }
 
+struct Cluster
+{
+    int index{-1};
+    Completeness completeness{Completeness::kIncomplete};
+    float latest_time{0};
+    std::set<Hit*> hits;
+
+    void add_hit(Hit* h)
+    {
+        hits.insert(h);
+        h->cluster=index;
+        latest_time=std::max(latest_time, h->time);
+    }
+    
+};
+
 struct State
 {
     std::vector<Hit*> hits; // All the hits we've seen so far, in time order
-    int cluster{-1}; // The index of the current cluster
     float latest_time{0}; // The latest time of a hit in the vector of hits
     int last_processed_index{0}; // The last index in `hits` that we processed
+    std::vector<Cluster> clusters;
 };
 
 //======================================================================
-void cluster_reachable(State& state, std::vector<Hit*> seedSet, int cluster, float eps, unsigned int minPts)
+void cluster_reachable(State& state, std::vector<Hit*> seedSet, Cluster& cluster, float eps, unsigned int minPts)
 {
+    // std::cout << "        cluster_reachable with seedSet size " << seedSet.size() << " cluster " << cluster.index << " with initial size " << cluster.hits.size() << std::endl;
     // Loop over all neighbours (and the neighbours of core points, and so on)
     while(!seedSet.empty()){
         Hit* q=seedSet.back();
         seedSet.pop_back();
-        if(q->time + eps > state.latest_time){
-            q->needs_cluster_reachable=true;
-            std::cout << "  hit at " << q->time << ", " << q->chan << " is within eps (" << eps << ") of latest time " << state.latest_time << std::endl;
-            continue;
-        }
 
         // Change noise to a border point
-        if(q->cluster==kNoise){
-            std::cout << "  adding previously-noise hit at " << q->time << ", " << q->chan << " to cluster " << state.cluster << std::endl;
-            q->cluster=cluster;
+        if(q->connectedness==Connectedness::kNoise){
+            // // std::cout << "  adding previously-noise hit at " << q->time << ", " << q->chan << " to cluster " << state.cluster << std::endl;
+            cluster.add_hit(q);
         }
-        if(q->cluster!=kUndefined) continue;
-        std::cout << "  adding previously-undefined hit at " << q->time << ", " << q->chan << " to cluster " << state.cluster << std::endl;
-        q->cluster=cluster;
+        
+        if(q->cluster!=kUndefined){
+            // // std::cout << "Saw hit in cluster " << q->cluster << " when forming cluster " << cluster.index << std::endl;
+            continue;
+        }
+        
+        // std::cout << "        adding previously-undefined hit (" << q->time << ", " << q->chan << ") to cluster " << cluster.index << std::endl;
+        cluster.add_hit(q);
+        // std::cout << "        cluster " << cluster.index << " now has size " << cluster.hits.size() << std::endl;
         // Neighbours of q
         std::vector<Hit*> nbrq=neighbours_sorted(state.hits, *q, eps);
         // If q is a core point, add its neighbours to the search list
         if(nbrq.size()>=minPts){
-            q->is_core=true;
+            q->connectedness=Connectedness::kCore;
             seedSet.insert(seedSet.end(), nbrq.begin(), nbrq.end());
-            std::cout << "  hit at " << q->time << ", " << q->chan << " has " << nbrq.size() << " neighbours, so is core" << std::endl;
+            // std::cout << "        hit (" << q->time << ", " << q->chan << ") has " << nbrq.size() << " neighbours, so is core" << std::endl;
         }
         else{
-            std::cout << "  hit at " << q->time << ", " << q->chan << " has " << nbrq.size() << " neighbours, so is *not* core" << std::endl;
+            // std::cout << "       hit (" << q->time << ", " << q->chan << ") has " << nbrq.size() << " neighbours, so is *not* core" << std::endl;
         }
     }
 }
@@ -235,65 +269,77 @@ void cluster_reachable(State& state, std::vector<Hit*> seedSet, int cluster, flo
 // Modified DBSCAN algorithm that takes one hit at a time, with the requirement that the hits are passed in time order
 void dbscan_partial_add_one(State& state, Hit* hit, float eps, unsigned int minPts)
 {
-    if(hit->cluster != kUndefined){
-        throw std::runtime_error("Hit cluster is already set");
-    }
-    state.latest_time = hit->time;
-
-    for(auto h: state.hits){
-        if(h->needs_cluster_reachable && h->time+eps < state.latest_time-1){
-            std::cout << "Repeche hit at " << h->time << ", " << h->chan << std::endl;
-            std::vector<Hit*> seed{h};
-            cluster_reachable(state, seed, h->cluster, eps, minPts);
-            h->needs_cluster_reachable=false;
-        }
-    }
-
-    state.hits.push_back(hit);
+    static int ncall=0;
+    // std::cout << ncall << " Adding hit (" << hit->time << ", " << hit->chan << ")" << std::endl;
     
-    // Walk process_until_index forward until it reaches the last hit
-    // that is a distance eps or more from the latest hit: for this
-    // point (and all those before it), all of the hit's
-    // eps-neighbours are already available
-    int process_until_index=0;
-    while(process_until_index<state.hits.size() && state.hits[process_until_index]->time<state.latest_time - eps) ++process_until_index;
+    state.hits.push_back(hit);
+    state.latest_time=hit->time;
 
-    std::cout << state.hits.size() << ". Got hit with time " << hit->time << ". Processing hits from index " << state.last_processed_index << " to " << process_until_index << std::endl;
-    for(int i=state.last_processed_index; i<process_until_index; ++i){
-        // Do regular dbscan on the items we haven't processed yet. An item found to be a non-core point here will never be a core point
-        Hit* p=state.hits[i];
-        if(p->cluster!=kUndefined) continue; // We already did this one
-        std::cout << "  hit " << i << " is kUndefined" << std::endl;
-        std::vector<Hit*> nbr=neighbours_sorted(state.hits, *p, eps);
-
-        if(nbr.size()<minPts){
-            // Not enough neighbours to be a core point. Classify as noise (but we might reclassify later)
-            std::cout << "  not enough hits to be a core point" << std::endl;
-            p->cluster=kNoise;
+    for(Cluster& cluster : state.clusters){
+        if(cluster.completeness==Completeness::kComplete){
+            // std::cout << "    Cluster " << cluster.index << " is complete. Skipping" << std::endl;
             continue;
         }
+        // std::cout << "    Looping over " << cluster.hits.size() << " hits in cluster " << cluster.index << std::endl;
+        for(Hit* h : cluster.hits){
+            bool completed_this_iteration=h->completeness==Completeness::kIncomplete && h->time < state.latest_time - eps;
+            if(completed_this_iteration){
+                // std::cout << "        Hit (" << hit->time << ", " << hit->chan << ") is now complete" << std::endl;
+                h->completeness=Completeness::kComplete;
+            }
+            
+            if(completed_this_iteration || h->connectedness==Connectedness::kCore){
+                // std::cout << "        Calling cluster_reachable for hit (" << hit->time << ", " << hit->chan << ")" << std::endl;
+                std::vector<Hit*> nbr=neighbours_sorted(state.hits, *h, eps);
 
-        state.cluster++;
-        // Assign this core point to the current cluster
-        p->cluster=state.cluster;
-        p->is_core=true;
-        // Seed set is all the neighbours of p except for p
-        std::vector<Hit*> seedSet;
-        for(auto const& n: nbr){
-            if(n!=p){
-                seedSet.push_back(n);
+                if(nbr.size()>=minPts){
+                    h->connectedness=Connectedness::kCore;
+                    
+                    // Seed set is all the neighbours of p except for p
+                    std::vector<Hit*> seedSet;
+                    for(auto const& n: nbr){
+                        if(n!=h){
+                            seedSet.push_back(n);
+                        }
+                    }
+                    cluster_reachable(state, seedSet, cluster, eps, minPts);
+                    // std::cout << "    After cluster_reachable, cluster " << cluster.index << " has size " << cluster.hits.size() << std::endl;
+                }
             }
         }
-        if(seedSet.size()!=nbr.size()-1){
-            std::cout << "seedSet.size()=" << seedSet.size() << " but nbr.size()=" << nbr.size() << std::endl;
+        if(cluster.latest_time < state.latest_time - eps){
+            // std::cout << "    cluster " << cluster.index << " is complete. cluster latest_time is " << cluster.latest_time << ", global latest_time is " << state.latest_time << std::endl;
+            cluster.completeness=Completeness::kComplete;
         }
-        assert(seedSet.size()==nbr.size()-1);
-
-        std::cout << "  " << nbr.size() << " neighbours, which is enough to be a core point, so looping over proper neighbours" << std::endl;
-        cluster_reachable(state, seedSet, state.cluster, eps, minPts);
     }
 
-    state.last_processed_index=process_until_index;
+    if(hit->connectedness==Connectedness::kUndefined){
+        std::vector<Hit*> nbr=neighbours_sorted(state.hits, *hit, eps);
+        if(nbr.size()<minPts){
+            // hit->connectedness=Connectedness::kNoise;
+        }
+        else{
+            hit->connectedness=Connectedness::kCore;
+            Cluster new_cluster;
+            new_cluster.index=state.clusters.size();
+            // std::cout << ncall << " New cluster idx " << new_cluster.index << " with " << nbr.size() << " points" << std::endl;
+            hit->cluster=new_cluster.index;
+            new_cluster.completeness=Completeness::kIncomplete;
+            new_cluster.add_hit(hit);
+            
+            state.clusters.push_back(new_cluster);
+            
+            std::vector<Hit*> seedSet;
+            for(auto const& n: nbr){
+                if(n!=hit){
+                    seedSet.push_back(n);
+                }
+            }
+            cluster_reachable(state, seedSet, state.clusters.back(), eps, minPts);
+        }
+    }
+
+    ++ncall;
 }
 
 //======================================================================
@@ -314,7 +360,7 @@ void draw_clusters(const vector<Hit*>& hits)
             if(hit->cluster==kNoise){
                 gr->SetMarkerColor(kGray);
             }
-            if(hit->cluster==kUndefined){
+            else if(hit->cluster==kUndefined){
                 gr->SetMarkerColor(kGray+2);
                 gr->SetMarkerStyle(2);
             }
