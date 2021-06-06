@@ -58,8 +58,16 @@ void test_dbscan(const char* filename, bool test)
     
     State state;
     TStopwatch ts;
+    int i=0;
+    double last_real_time=0;
     for(auto h: hits_sorted){
         dbscan_partial_add_one(state, h, eps, minPts);
+        if(++i % 100000 == 0){
+            double real_time=ts.RealTime();
+            ts.Continue();
+            std::cout << "100k hits took " << (real_time-last_real_time) << "s" << std::endl;
+            last_real_time=real_time;
+        }
     }
 
     // Give it a far-future hit so it goes through all of the hits

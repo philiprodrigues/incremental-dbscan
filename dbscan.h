@@ -6,63 +6,14 @@
 #include <iostream>
 #include <algorithm> // For std::lower_bound
 #include <set>
+#include <list>
 
 #include "TGraph.h"
 #include "TCanvas.h"
 #include "TAxis.h"
 
-const int kNoise=-2;
-const int kUndefined=-1;
+#include "Hit.h"
 
-enum class Connectedness
-{
-    kUndefined,
-    kNoise,
-    kCore,
-    kEdge
-};
-
-enum class Completeness
-{
-    kIncomplete,
-    kComplete,
-};
-
-struct Hit;
-float manhattanDist(const Hit& p, const Hit& q);
-
-//======================================================================
-struct Hit
-{
-    Hit(float _time, int _chan)
-        : time(_time), chan(_chan), cluster(kUndefined), connectedness(Connectedness::kUndefined), completeness(Completeness::kIncomplete)
-        {
-        }
-
-    // Return true if hit was indeed a neighbour
-    bool add_potential_neighbour(Hit* other, float eps)
-    {
-        if(other!=this && manhattanDist(*this, *other)<eps){
-            neighbours.insert(other);
-            // Neighbourliness is symmetric
-            other->neighbours.insert(this);
-            return true;
-        }
-        return false;
-    }
-    
-    float time;
-    int chan, cluster;
-    Connectedness connectedness;
-    Completeness completeness;
-    std::set<Hit*> neighbours;
-};
-
-//======================================================================
-float manhattanDist(const Hit& p, const Hit& q)
-{
-    return fabs((p.time-q.time))+fabs(p.chan-q.chan);
-}
 
 //======================================================================
 std::vector<Hit*> neighbours(const std::vector<Hit*>& hits, const Hit& q, float eps)
@@ -159,7 +110,7 @@ struct Cluster
     int index{-1};
     Completeness completeness{Completeness::kIncomplete};
     float latest_time{0};
-    std::set<Hit*> hits;
+    HitSet hits;
 
     void add_hit(Hit* h)
     {
@@ -171,6 +122,7 @@ struct Cluster
     void steal_hits(Cluster& other)
     {
         for(auto h: other.hits){
+            assert(h);
             add_hit(h);
         }
         other.hits.clear();
@@ -182,10 +134,9 @@ struct Cluster
 struct State
 {
     std::vector<Hit*> hits; // All the hits we've seen so far, in time order
-    std::vector<Hit*> old_hits; // Hits that are part of completed clusters
     float latest_time{0}; // The latest time of a hit in the vector of hits
     int last_processed_index{0}; // The last index in `hits` that we processed
-    std::vector<Cluster> clusters;
+    std::list<Cluster> clusters;
 };
 
 //======================================================================
@@ -233,6 +184,7 @@ void cluster_reachable(State& state, Hit* seed_hit, Cluster& cluster, float eps,
 void dbscan_partial_add_one(State& state, Hit* new_hit, float eps, unsigned int minPts)
 {
     static int ncall=0;
+    static int next_cluster_index=0;
     
     // std::cout << ncall << " Adding hit (" << new_hit->time << ", " << new_hit->chan << ")" << std::endl;
     
@@ -241,22 +193,36 @@ void dbscan_partial_add_one(State& state, Hit* new_hit, float eps, unsigned int 
     neighbours_sorted(state.hits, *new_hit, eps);
 
     std::vector<std::pair<int, int>> clusters_to_merge;
+
+    auto clust_it=state.clusters.begin();
     
-    for(Cluster& cluster : state.clusters){
+    while(clust_it!=state.clusters.end()){
+        Cluster& cluster=*clust_it;
         if(cluster.completeness==Completeness::kComplete){
-            // std::cout << "    Cluster " << cluster.index << " is complete. Skipping" << std::endl;
+            // if(ncall>5500) std::cout << "Erasing cluster " << cluster.index << std::endl;
+            clust_it=state.clusters.erase(clust_it);
             continue;
         }
-        // std::cout << "    Looping over " << cluster.hits.size() << " hits in cluster " << cluster.index << std::endl;
-
+        
+        bool needs_merge=false;
+        
         Hit* latest_core_point=nullptr;
-        for(Hit* h : cluster.hits){
-
+        // if(ncall>5500){
+        //     std::cout << "cluster " << cluster.index << " has " << cluster.hits.size() << " hits: ";
+        //     for(Hit* h : cluster.hits){
+        //         std::cout << h << " ";
+        //     }
+        //     std::cout << std::endl;
+        // }
+        for(size_t hit_index=0; hit_index<cluster.hits.size(); ++hit_index){
+            Hit* h=cluster.hits.hits[hit_index];
+            // if(ncall>5500) std::cout << "Processing hit " << h << std::endl;
             // Try adding the new hit to the neighbour list of any incomplete hits
             if(h->completeness==Completeness::kIncomplete){
                 if(h->add_potential_neighbour(new_hit, eps)){
                     if(new_hit->cluster!=kUndefined && new_hit->cluster!=cluster.index){
                         // std::cout << "    new_hit already in cluster " << new_hit->cluster << " also neighbours cluster " << cluster.index << ". Should merge" << std::endl;
+                        needs_merge=true;
                         clusters_to_merge.push_back(std::make_pair(new_hit->cluster, cluster.index));
                     }
                     cluster.add_hit(new_hit);
@@ -267,7 +233,7 @@ void dbscan_partial_add_one(State& state, Hit* new_hit, float eps, unsigned int 
                         h->connectedness = Connectedness::kEdge;
                     }
                 }
-            }
+            } // end if hit is incomplete
             
             if(h->connectedness == Connectedness::kCore){
                 if(!latest_core_point || h->time > latest_core_point->time){
@@ -281,37 +247,31 @@ void dbscan_partial_add_one(State& state, Hit* new_hit, float eps, unsigned int 
                 // std::cout << "        Hit (" << h->time << ", " << h->chan << ") is now complete" << std::endl;
                 h->completeness=Completeness::kComplete;
             }
-            
-            //     // std::cout << "        Calling cluster_reachable for hit (" << hit->time << ", " << hit->chan << ")" << std::endl;
-            //     neighbours_sorted(state.hits, *h, eps, nbr);
-
-            //     if(nbr.size()>=minPts){
-            //         h->connectedness=Connectedness::kCore;
-                    
-            //         // Seed set is all the neighbours of p except for p
-            //         std::vector<Hit*> seedSet;
-            //         for(auto const& n: nbr){
-            //             if(n!=h){
-            //                 seedSet.push_back(n);
-            //             }
-            //         }
-            //         cluster_reachable(state, seedSet, cluster, eps, minPts, nbr);
-            //         // std::cout << "    After cluster_reachable, cluster " << cluster.index << " has size " << cluster.hits.size() << std::endl;
-            //     }
-            // }
         } // end loop over hits in cluster
 
         cluster_reachable(state, latest_core_point, cluster, eps, minPts);
-        
-        if(cluster.latest_time < state.latest_time - eps){
-            // std::cout << "    cluster " << cluster.index << " is complete. cluster latest_time is " << cluster.latest_time << ", global latest_time is " << state.latest_time << std::endl;
+
+        if(cluster.latest_time < state.latest_time - eps && !needs_merge){
             cluster.completeness=Completeness::kComplete;
+            clust_it=state.clusters.erase(clust_it);
         }
-    }
+        else{
+            ++clust_it;
+        }
+    } // end loop over clusters
 
     for(auto cs : clusters_to_merge){
-        // std::cout << "   Transferring hits to cluster " << cs.first << " from " << cs.second << std::endl;
-        state.clusters[cs.first].steal_hits(state.clusters[cs.second]);
+        // if(ncall>5500) std::cout << "merging cluster " << cs.first << " into " << cs.second << std::endl;
+        std::list<Cluster>::iterator it=state.clusters.begin(), from_it=state.clusters.end(), to_it=state.clusters.end();
+        
+        for(; it!=state.clusters.end(); ++it){
+            if(it->index==cs.first) from_it=it;
+            if(it->index==cs.second) to_it=it;
+        }
+        if(from_it==state.clusters.end() || to_it==state.clusters.end()){
+            std::cerr << "Didn't find cluster " << std::endl;
+        }
+        to_it->steal_hits(*from_it);
     }
     
     if(new_hit->cluster==kUndefined){
@@ -323,9 +283,8 @@ void dbscan_partial_add_one(State& state, Hit* new_hit, float eps, unsigned int 
 
         if(new_hit->neighbours.size() + 1 >= minPts){
             new_hit->connectedness=Connectedness::kCore;
-            int index=state.clusters.size();
             Cluster& new_cluster=state.clusters.emplace_back();
-            new_cluster.index=index;
+            new_cluster.index=next_cluster_index++;
             // std::cout << ncall << " New cluster idx " << new_cluster.index << std::endl;
             new_cluster.completeness=Completeness::kIncomplete;
             new_cluster.add_hit(new_hit);
