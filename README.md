@@ -1,6 +1,6 @@
 # incremental-dbscan
 
-A streaming implementation of [https://en.wikipedia.org/wiki/DBSCAN](DBSCAN) clustering for 2D LArTPC hits.
+A streaming implementation of [DBSCAN](https://en.wikipedia.org/wiki/DBSCAN) clustering for 2D LArTPC hits.
 
 ## Motivation
 
