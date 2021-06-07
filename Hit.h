@@ -27,40 +27,40 @@ class Hit;
 class HitSet
 {
 public:
-  HitSet();
+    HitSet();
 
-  void insert(Hit* h);
+    void insert(Hit* h);
 
-  std::vector<Hit*>::iterator begin() { return hits.begin(); }
-  std::vector<Hit*>::iterator end() { return hits.end(); }
+    std::vector<Hit*>::iterator begin() { return hits.begin(); }
+    std::vector<Hit*>::iterator end() { return hits.end(); }
 
-  void clear() { hits.clear(); }
+    void clear() { hits.clear(); }
 
-  size_t size() { return hits.size(); }
+    size_t size() { return hits.size(); }
 
-  std::vector<Hit*> hits;
+    std::vector<Hit*> hits;
 };
 
 //======================================================================
 struct Hit
 {
-  Hit(float _time, int _chan);
+    Hit(float _time, int _chan);
 
-  // Return true if hit was indeed a neighbour
-  bool add_potential_neighbour(Hit* other, float eps);
+    // Return true if hit was indeed a neighbour
+    bool add_potential_neighbour(Hit* other, float eps);
 
-  float time;
-  int chan, cluster;
-  Connectedness connectedness;
-  Completeness completeness;
-  HitSet neighbours;
+    float time;
+    int chan, cluster;
+    Connectedness connectedness;
+    Completeness completeness;
+    HitSet neighbours;
 };
 
 
 //======================================================================
 inline float manhattanDist(const Hit& p, const Hit& q)
 {
-  return fabs((p.time-q.time))+fabs(p.chan-q.chan);
+    return fabs((p.time-q.time))+fabs(p.chan-q.chan);
 }
 
 //======================================================================
