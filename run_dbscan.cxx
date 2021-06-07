@@ -10,7 +10,7 @@
 #include "gperftools/profiler.h"
 #include "CLI11.hpp"
 
-std::vector<Hit*> get_hits(std::string name)
+std::vector<Hit*> get_hits(std::string name, int nhits, int nskip)
 {
     std::vector<Hit*> hits;
     if(name=="simple"){
@@ -34,33 +34,37 @@ std::vector<Hit*> get_hits(std::string name)
         std::ifstream fin(name);
         uint64_t timestamp, first_timestamp{0};
         int channel;
+        int i=0;
         while(fin >> channel >> timestamp){
             if(first_timestamp==0) first_timestamp=timestamp;
+            if(i++<nskip) continue;
+            if(nhits>0 && i>nskip+nhits) break;
+
             hits.push_back(new Hit((timestamp-first_timestamp)/100, channel));
         }
     }
     return hits;
 }
 
-void test_dbscan(std::string filename, bool test, std::string profile_filename)
+void test_dbscan(std::string filename, int nhits, int nskip, bool test, std::string profile_filename)
 {
     const int minPts=2;
     const float eps=10;
-    
-    auto hits=get_hits(filename);
+
+    auto hits=get_hits(filename, nhits, nskip);
 
     if(test){
         dbscan_orig(hits, eps, minPts);
         TCanvas* c=draw_clusters(hits);
         c->Print("dbscan-orig.png");
     }
-    
+
     std::vector<Hit*> hits_sorted(hits);
     std::sort(hits.begin(), hits.end(), [](Hit* a, Hit* b) { return a->time < b->time; });
     for(auto h: hits_sorted) h->cluster=kUndefined;
 
     if(profile_filename!="") ProfilerStart(profile_filename.c_str());
-    
+
     State state;
     TStopwatch ts;
     int i=0;
@@ -80,7 +84,7 @@ void test_dbscan(std::string filename, bool test, std::string profile_filename)
     dbscan_partial_add_one(state, &future_hit, eps, minPts);
     ts.Stop();
     if(profile_filename!="") ProfilerStop();
-    
+
     // Clock is 50 MHz, but we divided the time by 100 when we read in the hits
     double data_time=(hits_sorted.back()->time - hits_sorted.front()->time)/50e4;
     double processing_time=ts.RealTime();
@@ -101,15 +105,19 @@ int main(int argc, char** argv)
     cliapp.add_flag("-t,--test", test, "Test mode (show event display with clusters)");
     std::string profile;
     cliapp.add_option("-p,--profile", profile, "Run perftools profiler with output to file");
+    int nskip=0;
+    cliapp.add_option("-s,--nskip", nskip, "Number of hits at start of file to skip");
+    int nhits=-1;
+    cliapp.add_option("-n,--nhits", nhits, "Maximum number of hits to read from file");
 
     CLI11_PARSE(cliapp, argc, argv);
-    
+
     int dummy_argc=1;
     const char* dummy_argv[]={"foo"};
     TRint* app=nullptr;
     if(test) app=new TRint("foo", &dummy_argc, const_cast<char**>(dummy_argv));
 
-    test_dbscan(filename, test, profile);
+    test_dbscan(filename, nhits, nskip, test, profile);
     if(test) app->Run();
     delete app;
     return 0;
