@@ -126,13 +126,6 @@ struct Cluster
             Hit* h=*it;
             if(h->add_potential_neighbour(new_hit, eps)){
                 do_add=true;
-                // // Is the hit already in another cluster? If so, we should merge the clusters
-                // if(new_hit->cluster!=kUndefined && new_hit->cluster!=cluster.index){
-                //     // std::cout << "    new_hit already in cluster " << new_hit->cluster << " also neighbours cluster " << cluster.index << ". Should merge" << std::endl;
-                //     needs_merge=true;
-                //     clusters_to_merge.push_back(std::make_pair(new_hit->cluster, cluster.index));
-                // }
-                // cluster.add_hit(new_hit);
                 if(h->neighbours.size() + 1 >= minPts){
                     h->connectedness = Connectedness::kCore;
                 }
@@ -180,7 +173,6 @@ struct State
 {
     std::vector<Hit*> hits; // All the hits we've seen so far, in time order
     float latest_time{0}; // The latest time of a hit in the vector of hits
-    int last_processed_index{0}; // The last index in `hits` that we processed
     std::list<Cluster> clusters;
 };
 
