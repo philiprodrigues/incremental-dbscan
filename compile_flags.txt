@@ -1,0 +1,4 @@
+-isystem
+/cvmfs/larsoft.opensciencegrid.org/products/root/v6_22_06a/Linux64bit+3.10-2.17-e20-p383b-prof/include
+-std=c++17
+-stdlib=libc++
