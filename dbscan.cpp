@@ -25,10 +25,14 @@ neighbours_sorted(const std::vector<Hit*>& hits, Hit& q, float eps)
 bool
 Cluster::maybe_add_new_hit(Hit* new_hit, float eps, int minPts)
 {
+    // Should we add this hit?
     bool do_add = false;
 
+    // Hits earlier than new_hit time minus `eps` can't possibly be
+    // neighbours, so start the search there in the sorted list of hits in this cluster
     auto begin_it = std::lower_bound(
         hits.begin(), hits.end(), new_hit->time - eps, time_comp_lower);
+
 
     for (auto it = begin_it; it != hits.end(); ++it) {
         Hit* h = *it;
@@ -46,8 +50,6 @@ Cluster::maybe_add_new_hit(Hit* new_hit, float eps, int minPts)
             h->completeness == Completeness::kIncomplete &&
             h->time < new_hit->time - eps;
         if (completed_this_iteration) {
-            // std::cout << "        Hit (" << h->time << ", " << h->chan << ")
-            // is now complete" << std::endl;
             h->completeness = Completeness::kComplete;
         }
     } // end loop over hits in cluster
@@ -67,8 +69,9 @@ Cluster::add_hit(Hit* h)
     h->cluster = index;
     latest_time = std::max(latest_time, h->time);
     if (h->connectedness == Connectedness::kCore &&
-        (!latest_core_point || h->time > latest_core_point->time))
+        (!latest_core_point || h->time > latest_core_point->time)){
         latest_core_point = h;
+    }
 }
 
 //======================================================================
@@ -97,11 +100,6 @@ cluster_reachable(DBSCANState& state,
                   float eps,
                   unsigned int minPts)
 {
-    // std::cout << "        cluster_reachable with
-    // seed_hit->neighbours.size()=" << seed_hit->neighbours.size() << " cluster
-    // " << cluster.index << " with initial size " << cluster.hits.size() <<
-    // std::endl;
-
     // Loop over all neighbours (and the neighbours of core points, and so on)
     std::vector<Hit*> seedSet(seed_hit->neighbours.begin(),
                               seed_hit->neighbours.end());
@@ -112,36 +110,20 @@ cluster_reachable(DBSCANState& state,
 
         // Change noise to a border point
         if (q->connectedness == Connectedness::kNoise) {
-            // std::cout << "        adding previously-noise hit at " << q->time
-            // << ", " << q->chan << " to cluster " << cluster.index <<
-            // std::endl;
             cluster.add_hit(q);
         }
 
         if (q->cluster != kUndefined) {
-            // // std::cout << "        Saw hit in cluster " << q->cluster << "
-            // when forming cluster " << cluster.index << std::endl;
             continue;
         }
 
-        // std::cout << "        adding previously-undefined hit (" << q->time
-        // << ", " << q->chan << ") to cluster " << cluster.index << std::endl;
         cluster.add_hit(q);
-        // std::cout << "        cluster " << cluster.index << " now has size "
-        // << cluster.hits.size() << std::endl;
 
         // If q is a core point, add its neighbours to the search list
         if (q->neighbours.size() + 1 >= minPts) {
             q->connectedness = Connectedness::kCore;
             seedSet.insert(
                 seedSet.end(), q->neighbours.begin(), q->neighbours.end());
-            // std::cout << "        hit (" << q->time << ", " << q->chan << ")
-            // has " << q->neighbours.size() << " neighbours, so is core" <<
-            // std::endl;
-        } else {
-            // std::cout << "       hit (" << q->time << ", " << q->chan << ")
-            // has " << q->neighbours.size() << " neighbours, so is *not* core"
-            // << std::endl;
         }
     }
 }
@@ -155,9 +137,6 @@ dbscan_partial_add_one(DBSCANState& state,
 {
     static int ncall = 0;
     static int next_cluster_index = 0;
-
-    // std::cout << ncall << " Adding hit (" << new_hit->time << ", " <<
-    // new_hit->chan << ")" << std::endl;
 
     state.hits.push_back(new_hit);
     state.latest_time = new_hit->time;
@@ -174,8 +153,6 @@ dbscan_partial_add_one(DBSCANState& state,
     while (clust_it != state.clusters.end()) {
         Cluster& cluster = *clust_it;
         if (cluster.completeness == Completeness::kComplete) {
-            // if(ncall>5500) std::cout << "Erasing cluster " << cluster.index
-            // << std::endl;
             clust_it = state.clusters.erase(clust_it);
             continue;
         }
@@ -212,17 +189,12 @@ dbscan_partial_add_one(DBSCANState& state,
             new_hit->connectedness = Connectedness::kCore;
             Cluster& new_cluster = state.clusters.emplace_back();
             new_cluster.index = next_cluster_index++;
-            // std::cout << ncall << " New cluster idx " << new_cluster.index <<
-            // std::endl;
             new_cluster.completeness = Completeness::kIncomplete;
             new_cluster.add_hit(new_hit);
             for (auto& neighbour : new_hit->neighbours) {
                 new_cluster.add_hit(neighbour);
             }
             cluster_reachable(state, new_hit, new_cluster, eps, minPts);
-            // std::cout << ncall << " After initial cluster_reachable, cluster
-            // " << new_cluster.index << " has " << new_cluster.hits.size() << "
-            // hits" << std::endl;
         }
     }
 
