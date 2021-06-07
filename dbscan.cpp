@@ -19,6 +19,7 @@ neighbours_sorted(const std::vector<Hit*>& hits, Hit& q, float eps)
     }
     return n;
 }
+
 bool
 Cluster::maybe_add_new_hit(Hit* new_hit, float eps, int minPts)
 {

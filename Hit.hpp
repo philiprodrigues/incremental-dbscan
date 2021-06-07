@@ -5,8 +5,8 @@
 #include <cmath>
 #include <list>
 
-const int kNoise=-2;
-const int kUndefined=-1;
+const int kNoise = -2;
+const int kUndefined = -1;
 
 enum class Connectedness
 {
@@ -56,15 +56,16 @@ struct Hit
     HitSet neighbours;
 };
 
-
 //======================================================================
-inline float manhattanDist(const Hit& p, const Hit& q)
+inline float
+manhattanDist(const Hit& p, const Hit& q)
 {
-    return fabs((p.time-q.time))+fabs(p.chan-q.chan);
+    return fabs((p.time - q.time)) + fabs(p.chan - q.chan);
 }
 
 //======================================================================
-inline bool time_comp_lower(const Hit* hit, const float t)
+inline bool
+time_comp_lower(const Hit* hit, const float t)
 {
     return hit->time < t;
 };

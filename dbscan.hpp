@@ -17,10 +17,10 @@ neighbours_sorted(const std::vector<Hit*>& hits, Hit& q, float eps);
 //======================================================================
 struct Cluster
 {
-    int index{-1};
-    Completeness completeness{Completeness::kIncomplete};
-    float latest_time{0};
-    Hit* latest_core_point{nullptr};
+    int index{ -1 };
+    Completeness completeness{ Completeness::kIncomplete };
+    float latest_time{ 0 };
+    Hit* latest_core_point{ nullptr };
     HitSet hits;
 
     // Add hit if it's a neighbour of a hit already in the
@@ -37,7 +37,7 @@ struct Cluster
 struct State
 {
     std::vector<Hit*> hits; // All the hits we've seen so far, in time order
-    float latest_time{0}; // The latest time of a hit in the vector of hits
+    float latest_time{ 0 }; // The latest time of a hit in the vector of hits
     std::list<Cluster> clusters;
 };
 
@@ -51,7 +51,8 @@ cluster_reachable(State& state,
 
 //======================================================================
 //
-// Modified DBSCAN algorithm that takes one hit at a time, with the requirement that the hits are passed in time order
+// Modified DBSCAN algorithm that takes one hit at a time, with the requirement
+// that the hits are passed in time order
 void
 dbscan_partial_add_one(State& state,
                        Hit* new_hit,
