@@ -140,7 +140,10 @@ dbscan_partial_add_one(DBSCANState& state,
 
     state.hits.push_back(new_hit);
     state.latest_time = new_hit->time;
+    // TODO: is it necessary to do this here? do we need the list of
+    // neighbours before looping over the clusters?
     neighbours_sorted(state.hits, *new_hit, eps);
+
 
     // All the clusters that this hit neighboured. If there are
     // multiple clusters neighbouring this hit, we'll merge them at
@@ -152,21 +155,28 @@ dbscan_partial_add_one(DBSCANState& state,
 
     while (clust_it != state.clusters.end()) {
         Cluster& cluster = *clust_it;
+
+        // If this cluster was already marked as complete, the new hit
+        // can't be part of it. Skip it and remove from the list
         if (cluster.completeness == Completeness::kComplete) {
             clust_it = state.clusters.erase(clust_it);
             continue;
         }
 
+        // Try adding the new hit to this cluster
         if (cluster.maybe_add_new_hit(new_hit, eps, minPts)) {
             clusters_to_merge.push_back(clust_it);
         }
 
+        // TODO: should we only be doing this if we actually added the hit to this cluster?
         cluster_reachable(
             state, cluster.latest_core_point, cluster, eps, minPts);
 
+        // Mark the cluster complete if appropriate
         if (cluster.latest_time < state.latest_time - eps) {
             cluster.completeness = Completeness::kComplete;
         }
+
         ++clust_it;
     } // end loop over clusters
 
