@@ -2,6 +2,7 @@
 
 #include <cassert>
 
+//======================================================================
 int
 neighbours_sorted(const std::vector<Hit*>& hits, Hit& q, float eps)
 {
@@ -20,6 +21,7 @@ neighbours_sorted(const std::vector<Hit*>& hits, Hit& q, float eps)
     return n;
 }
 
+//======================================================================
 bool
 Cluster::maybe_add_new_hit(Hit* new_hit, float eps, int minPts)
 {
@@ -56,6 +58,8 @@ Cluster::maybe_add_new_hit(Hit* new_hit, float eps, int minPts)
 
     return do_add;
 }
+
+//======================================================================
 void
 Cluster::add_hit(Hit* h)
 {
@@ -66,6 +70,8 @@ Cluster::add_hit(Hit* h)
         (!latest_core_point || h->time > latest_core_point->time))
         latest_core_point = h;
 }
+
+//======================================================================
 void
 Cluster::steal_hits(Cluster& other)
 {
@@ -76,8 +82,10 @@ Cluster::steal_hits(Cluster& other)
     other.hits.clear();
     other.completeness = Completeness::kComplete;
 }
+
+//======================================================================
 void
-cluster_reachable(State& state,
+cluster_reachable(DBSCANState& state,
                   Hit* seed_hit,
                   Cluster& cluster,
                   float eps,
@@ -131,8 +139,10 @@ cluster_reachable(State& state,
         }
     }
 }
+
+//======================================================================
 void
-dbscan_partial_add_one(State& state,
+dbscan_partial_add_one(DBSCANState& state,
                        Hit* new_hit,
                        float eps,
                        unsigned int minPts)

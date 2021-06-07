@@ -2,11 +2,13 @@
 
 #include <algorithm>
 
+//======================================================================
 HitSet::HitSet()
 {
     hits.reserve(100);
 }
 
+//======================================================================
 void
 HitSet::insert(Hit* h)
 {
@@ -15,10 +17,12 @@ HitSet::insert(Hit* h)
     };
     auto it =
         std::lower_bound(hits.begin(), hits.end(), h->time, time_comp_lower);
-    if (it == hits.end() || *it != h)
+    if (it == hits.end() || *it != h) {
         hits.insert(it, h);
+    }
 }
 
+//======================================================================
 Hit::Hit(float _time, int _chan)
     : time(_time)
     , chan(_chan)
@@ -26,6 +30,8 @@ Hit::Hit(float _time, int _chan)
     , connectedness(Connectedness::kUndefined)
     , completeness(Completeness::kIncomplete)
 {}
+
+//======================================================================
 
 // Return true if hit was indeed a neighbour
 bool

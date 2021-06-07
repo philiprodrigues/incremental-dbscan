@@ -17,6 +17,7 @@
 
 #include "CLI11.hpp"
 
+//======================================================================
 std::vector<Hit*> get_hits(std::string name, int nhits, int nskip)
 {
     std::vector<Hit*> hits;
@@ -53,6 +54,7 @@ std::vector<Hit*> get_hits(std::string name, int nhits, int nskip)
     return hits;
 }
 
+//======================================================================
 void test_dbscan(std::string filename, int nhits, int nskip, bool test, std::string profile_filename)
 {
     const int minPts=2;
@@ -61,22 +63,29 @@ void test_dbscan(std::string filename, int nhits, int nskip, bool test, std::str
     auto hits=get_hits(filename, nhits, nskip);
 
     if(test){
+        // Run the naive DBSCAN implementation for comparison with the
+        // incremental one
         dbscan_orig(hits, eps, minPts);
         TCanvas* c=draw_clusters(hits);
         c->Print("dbscan-orig.png");
     }
 
+    // Sort the hits by time for the incremental DBSCAN, which requires it
     std::vector<Hit*> hits_sorted(hits);
     std::sort(hits.begin(), hits.end(), [](Hit* a, Hit* b) { return a->time < b->time; });
+    // If test==true, we've already set cluster indexes for the hits,
+    // so we have to reset them here
     for(auto h: hits_sorted) h->cluster=kUndefined;
 
 #ifdef HAVE_PROFILER
+    // Start the profiler here, so the profile only measures the
+    // incremental DBSCAN, not the hit reading and the original DBSCAN
     if(profile_filename!="") ProfilerStart(profile_filename.c_str());
 #else
     if(profile_filename!="") std::cerr << "profile filename specified, but run_dbscan built without profiler support" << std::endl;
 #endif
 
-    State state;
+    DBSCANState state;
     TStopwatch ts;
     int i=0;
     double last_real_time=0;
@@ -109,6 +118,7 @@ void test_dbscan(std::string filename, int nhits, int nskip, bool test, std::str
     }
 }
 
+//======================================================================
 int main(int argc, char** argv)
 {
     CLI::App cliapp{"Run incremental DBSCAN"};
@@ -135,6 +145,7 @@ int main(int argc, char** argv)
     
     int dummy_argc=1;
     const char* dummy_argv[]={"foo"};
+    // TRint is here to start up the ROOT event loop so we can display the canvases on screen
     TRint* app=nullptr;
     if(test) app=new TRint("foo", &dummy_argc, const_cast<char**>(dummy_argv));
 
