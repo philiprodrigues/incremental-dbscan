@@ -1,4 +1,4 @@
-#include "Hit.h"
+#include "Hit.hpp"
 
 #include <algorithm>
 

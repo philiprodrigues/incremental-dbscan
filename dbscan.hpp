@@ -12,7 +12,7 @@
 #include "TCanvas.h"
 #include "TAxis.h"
 
-#include "Hit.h"
+#include "Hit.hpp"
 
 
 //======================================================================

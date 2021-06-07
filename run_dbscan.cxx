@@ -1,4 +1,4 @@
-#include "dbscan.h"
+#include "dbscan.hpp"
 #include "TStopwatch.h"
 #include "TRint.h"
 
