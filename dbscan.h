@@ -95,6 +95,8 @@ std::vector<std::vector<Hit*> > dbscan_orig(std::vector<Hit*>& hits, float eps, 
 int neighbours_sorted(const std::vector<Hit*>& hits, Hit& q, float eps)
 {
     int n=0;
+    // Loop over the hits starting from the latest hit, since we will
+    // ~always be adding a hit at recent times
     for(auto hit_it=hits.rbegin(); hit_it!=hits.rend(); ++hit_it){
         if((*hit_it)->time > q.time + eps) continue;
         if((*hit_it)->time < q.time - eps) break;
@@ -110,13 +112,56 @@ struct Cluster
     int index{-1};
     Completeness completeness{Completeness::kIncomplete};
     float latest_time{0};
+    Hit* latest_core_point{nullptr};
     HitSet hits;
 
+    // Add hit if it's a neighbour of a hit already in the cluster. Precondition: time of new_hit is >= the time of any hit in the cluster
+    bool maybe_add_new_hit(Hit* new_hit, float eps, int minPts)
+    {
+        bool do_add=false;
+
+        auto begin_it=std::lower_bound(hits.begin(), hits.end(), new_hit->time-eps, time_comp_lower);
+
+        for(auto it=begin_it; it!=hits.end(); ++it){
+            Hit* h=*it;
+            if(h->add_potential_neighbour(new_hit, eps)){
+                do_add=true;
+                // // Is the hit already in another cluster? If so, we should merge the clusters
+                // if(new_hit->cluster!=kUndefined && new_hit->cluster!=cluster.index){
+                //     // std::cout << "    new_hit already in cluster " << new_hit->cluster << " also neighbours cluster " << cluster.index << ". Should merge" << std::endl;
+                //     needs_merge=true;
+                //     clusters_to_merge.push_back(std::make_pair(new_hit->cluster, cluster.index));
+                // }
+                // cluster.add_hit(new_hit);
+                if(h->neighbours.size() + 1 >= minPts){
+                    h->connectedness = Connectedness::kCore;
+                }
+                else{
+                    h->connectedness = Connectedness::kEdge;
+                }
+            }
+
+            // Mark any hits that are now completed
+            bool completed_this_iteration=h->completeness==Completeness::kIncomplete && h->time < new_hit->time - eps;
+            if(completed_this_iteration){
+                // std::cout << "        Hit (" << h->time << ", " << h->chan << ") is now complete" << std::endl;
+                h->completeness=Completeness::kComplete;
+            }
+        } // end loop over hits in cluster
+
+        if(do_add){
+            add_hit(new_hit);
+        }
+
+        return do_add;
+    }
+    
     void add_hit(Hit* h)
     {
         hits.insert(h);
         h->cluster=index;
         latest_time=std::max(latest_time, h->time);
+        if(h->connectedness==Connectedness::kCore && (!latest_core_point || h->time > latest_core_point->time)) latest_core_point=h;
     }
 
     void steal_hits(Cluster& other)
@@ -192,7 +237,11 @@ void dbscan_partial_add_one(State& state, Hit* new_hit, float eps, unsigned int 
     state.latest_time=new_hit->time;
     neighbours_sorted(state.hits, *new_hit, eps);
 
-    std::vector<std::pair<int, int>> clusters_to_merge;
+    // All the clusters that this hit neighboured. If there are
+    // multiple clusters neighbouring this hit, we'll merge them at
+    // the end
+    using cluster_iterator = std::list<Cluster>::iterator;
+    std::vector<cluster_iterator> clusters_to_merge;
 
     auto clust_it=state.clusters.begin();
     
@@ -203,75 +252,25 @@ void dbscan_partial_add_one(State& state, Hit* new_hit, float eps, unsigned int 
             clust_it=state.clusters.erase(clust_it);
             continue;
         }
+
+        if(cluster.maybe_add_new_hit(new_hit, eps, minPts)){
+            clusters_to_merge.push_back(clust_it);
+        }
         
-        bool needs_merge=false;
-        
-        Hit* latest_core_point=nullptr;
-        // if(ncall>5500){
-        //     std::cout << "cluster " << cluster.index << " has " << cluster.hits.size() << " hits: ";
-        //     for(Hit* h : cluster.hits){
-        //         std::cout << h << " ";
-        //     }
-        //     std::cout << std::endl;
-        // }
-        for(size_t hit_index=0; hit_index<cluster.hits.size(); ++hit_index){
-            Hit* h=cluster.hits.hits[hit_index];
-            // if(ncall>5500) std::cout << "Processing hit " << h << std::endl;
-            // Try adding the new hit to the neighbour list of any incomplete hits
-            if(h->completeness==Completeness::kIncomplete){
-                if(h->add_potential_neighbour(new_hit, eps)){
-                    if(new_hit->cluster!=kUndefined && new_hit->cluster!=cluster.index){
-                        // std::cout << "    new_hit already in cluster " << new_hit->cluster << " also neighbours cluster " << cluster.index << ". Should merge" << std::endl;
-                        needs_merge=true;
-                        clusters_to_merge.push_back(std::make_pair(new_hit->cluster, cluster.index));
-                    }
-                    cluster.add_hit(new_hit);
-                    if(h->neighbours.size() + 1 >= minPts){
-                        h->connectedness = Connectedness::kCore;
-                    }
-                    else{
-                        h->connectedness = Connectedness::kEdge;
-                    }
-                }
-            } // end if hit is incomplete
-            
-            if(h->connectedness == Connectedness::kCore){
-                if(!latest_core_point || h->time > latest_core_point->time){
-                    latest_core_point=h;
-                }
-            }
+        cluster_reachable(state, cluster.latest_core_point, cluster, eps, minPts);
 
-            // Mark any hits that are now completed
-            bool completed_this_iteration=h->completeness==Completeness::kIncomplete && h->time < state.latest_time - eps;
-            if(completed_this_iteration){
-                // std::cout << "        Hit (" << h->time << ", " << h->chan << ") is now complete" << std::endl;
-                h->completeness=Completeness::kComplete;
-            }
-        } // end loop over hits in cluster
-
-        cluster_reachable(state, latest_core_point, cluster, eps, minPts);
-
-        if(cluster.latest_time < state.latest_time - eps && !needs_merge){
+        if(cluster.latest_time < state.latest_time - eps){
             cluster.completeness=Completeness::kComplete;
-            clust_it=state.clusters.erase(clust_it);
         }
-        else{
-            ++clust_it;
-        }
+        ++clust_it;
     } // end loop over clusters
 
-    for(auto cs : clusters_to_merge){
-        // if(ncall>5500) std::cout << "merging cluster " << cs.first << " into " << cs.second << std::endl;
-        std::list<Cluster>::iterator it=state.clusters.begin(), from_it=state.clusters.end(), to_it=state.clusters.end();
-        
-        for(; it!=state.clusters.end(); ++it){
-            if(it->index==cs.first) from_it=it;
-            if(it->index==cs.second) to_it=it;
+    // Merge any clusters that need merging
+    if(clusters_to_merge.size()>=2){
+        cluster_iterator into=clusters_to_merge.front();
+        for(size_t i=1; i<clusters_to_merge.size(); ++i){
+            into->steal_hits(*clusters_to_merge[i]);
         }
-        if(from_it==state.clusters.end() || to_it==state.clusters.end()){
-            std::cerr << "Didn't find cluster " << std::endl;
-        }
-        to_it->steal_hits(*from_it);
     }
     
     if(new_hit->cluster==kUndefined){
@@ -296,36 +295,6 @@ void dbscan_partial_add_one(State& state, Hit* new_hit, float eps, unsigned int 
         }
     }
 
-    // std::cout << "  dbscan_partial_add_one ends with new_hit->cluster=" << new_hit->cluster << std::endl;
-    // // Every so often, remove the hits from completed clusters from consideration, and too-old noise hits
-    // if(ncall%1024==0){
-    //     size_t norig=state.hits.size();
-    //     for(Cluster& cluster : state.clusters){
-    //         if(cluster.completeness==Completeness::kComplete){
-    //             for(Hit* h : cluster.hits){
-    //                 state.old_hits.push_back(h);
-    //                 auto time_comp_lower=[](const Hit* hit, const float t) { return hit->time < t; };
-    //                 auto start_it=std::lower_bound(state.hits.begin(), state.hits.end(), h->time, time_comp_lower);
-    //                 do{
-    //                     if(*start_it==h) state.hits.erase(start_it);
-    //                 } while((*start_it)->time < h->time);
-    //             }
-    //         }
-    //     }
-
-    //     for (auto it = state.hits.begin(); it != state.hits.end() && (*it)->time < state.latest_time - 100*eps; ) {
-    //         if ((*it)->connectedness==Connectedness::kNoise || (*it)->connectedness==Connectedness::kUndefined) {
-    //             state.old_hits.push_back(*it);
-    //             it = state.hits.erase(it);
-    //         } else {
-    //             ++it;
-    //         }
-    //     }
-
-    //     size_t nafter=state.hits.size();
-    //     // std::cout << "Cleaned up " << (norig-nafter) << " hits out of " << norig << std::endl;
-    // }
-    
     ++ncall;
 }
 

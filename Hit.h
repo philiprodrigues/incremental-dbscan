@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <cmath>
+#include <list>
 
 const int kNoise=-2;
 const int kUndefined=-1;
@@ -36,7 +37,7 @@ public:
   void clear() { hits.clear(); }
 
   size_t size() { return hits.size(); }
-  
+
   std::vector<Hit*> hits;
 };
 
@@ -47,7 +48,7 @@ struct Hit
 
   // Return true if hit was indeed a neighbour
   bool add_potential_neighbour(Hit* other, float eps);
-    
+
   float time;
   int chan, cluster;
   Connectedness connectedness;
@@ -62,6 +63,11 @@ inline float manhattanDist(const Hit& p, const Hit& q)
   return fabs((p.time-q.time))+fabs(p.chan-q.chan);
 }
 
+//======================================================================
+inline bool time_comp_lower(const Hit* hit, const float t)
+{
+    return hit->time < t;
+};
 #endif
 
 // Local Variables:

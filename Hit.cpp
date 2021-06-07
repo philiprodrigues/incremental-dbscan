@@ -4,14 +4,14 @@
 
 HitSet::HitSet()
 {
-  // hits.reserve(100);
+  hits.reserve(100);
 }
 
 void HitSet::insert(Hit* h)
 {
-  // auto time_comp_lower=[](const Hit* hit, const float t) { return hit->time < t; };
-  // auto it=std::lower_bound(hits.begin(), hits.end(), h->time, time_comp_lower);
-  // if(it==hits.end() || *it!=h) hits.insert(it, h);
+  auto time_comp_lower=[](const Hit* hit, const float t) { return hit->time < t; };
+  auto it=std::lower_bound(hits.begin(), hits.end(), h->time, time_comp_lower);
+  if(it==hits.end() || *it!=h) hits.insert(it, h);
 
   // bool already=false;
   // for(auto& hit: hits){
@@ -19,7 +19,7 @@ void HitSet::insert(Hit* h)
   // }
   // if(!already) hits.push_back(h);
 
-  if(std::all_of(hits.begin(), hits.end(), [h](Hit* hit){ return hit != h; })) hits.push_back(h);
+  // if(std::all_of(hits.begin(), hits.end(), [h](Hit* hit){ return hit != h; })) hits.push_back(h);
 }
 
 Hit::Hit(float _time, int _chan)
