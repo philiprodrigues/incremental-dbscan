@@ -75,6 +75,12 @@ Cluster::add_hit(Hit* h)
 void
 Cluster::steal_hits(Cluster& other)
 {
+    // TODO: it might be faster to do some sort of explicit "merge" of the hits, eg:
+    //
+    // this->hits.insert(other hits); // Inserts at end
+    // std::inplace_merge(...)
+    //
+    // This might save some reallocations of the vector
     for (auto h : other.hits) {
         assert(h);
         add_hit(h);
@@ -222,3 +228,9 @@ dbscan_partial_add_one(DBSCANState& state,
 
     ++ncall;
 }
+
+// Local Variables:
+// mode: c++
+// c-basic-offset: 4
+// c-file-style: "linux"
+// End:
