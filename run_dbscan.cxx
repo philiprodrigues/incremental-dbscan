@@ -7,6 +7,9 @@
 #include <fstream>
 #include <string>
 
+#include "gperftools/profiler.h"
+#include "CLI11.hpp"
+
 std::vector<Hit*> get_hits(std::string name)
 {
     std::vector<Hit*> hits;
@@ -39,7 +42,7 @@ std::vector<Hit*> get_hits(std::string name)
     return hits;
 }
 
-void test_dbscan(const char* filename, bool test)
+void test_dbscan(std::string filename, bool test, std::string profile_filename)
 {
     const int minPts=2;
     const float eps=10;
@@ -55,6 +58,8 @@ void test_dbscan(const char* filename, bool test)
     std::vector<Hit*> hits_sorted(hits);
     std::sort(hits.begin(), hits.end(), [](Hit* a, Hit* b) { return a->time < b->time; });
     for(auto h: hits_sorted) h->cluster=kUndefined;
+
+    if(profile_filename!="") ProfilerStart(profile_filename.c_str());
     
     State state;
     TStopwatch ts;
@@ -74,6 +79,8 @@ void test_dbscan(const char* filename, bool test)
     Hit future_hit(10000, 110);
     dbscan_partial_add_one(state, &future_hit, eps, minPts);
     ts.Stop();
+    if(profile_filename!="") ProfilerStop();
+    
     // Clock is 50 MHz, but we divided the time by 100 when we read in the hits
     double data_time=(hits_sorted.back()->time - hits_sorted.front()->time)/50e4;
     double processing_time=ts.RealTime();
@@ -86,17 +93,23 @@ void test_dbscan(const char* filename, bool test)
 
 int main(int argc, char** argv)
 {
+    CLI::App cliapp{"Run incremental DBSCAN"};
+
+    std::string filename;;
+    cliapp.add_option("-f,--file", filename, "Input file of hits");
+    bool test=false;
+    cliapp.add_flag("-t,--test", test, "Test mode (show event display with clusters)");
+    std::string profile;
+    cliapp.add_option("-p,--profile", profile, "Run perftools profiler with output to file");
+
+    CLI11_PARSE(cliapp, argc, argv);
+    
     int dummy_argc=1;
     const char* dummy_argv[]={"foo"};
     TRint* app=nullptr;
-    bool test=argc>=3;
     if(test) app=new TRint("foo", &dummy_argc, const_cast<char**>(dummy_argv));
 
-    if(argc<2){
-        std::cout << "Usage: run_dbscan input_file [test]" << std::endl;
-        return 1;
-    }
-    test_dbscan(argv[1], test);
+    test_dbscan(filename, test, profile);
     if(test) app->Run();
     delete app;
     return 0;
