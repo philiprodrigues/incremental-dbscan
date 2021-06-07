@@ -7,7 +7,10 @@
 #include <fstream>
 #include <string>
 
+#ifdef HAVE_PROFILER
 #include "gperftools/profiler.h"
+#endif
+
 #include "CLI11.hpp"
 
 std::vector<Hit*> get_hits(std::string name, int nhits, int nskip)
@@ -63,7 +66,11 @@ void test_dbscan(std::string filename, int nhits, int nskip, bool test, std::str
     std::sort(hits.begin(), hits.end(), [](Hit* a, Hit* b) { return a->time < b->time; });
     for(auto h: hits_sorted) h->cluster=kUndefined;
 
+#ifdef HAVE_PROFILER
     if(profile_filename!="") ProfilerStart(profile_filename.c_str());
+#else
+    if(profile_filename!="") std::cerr << "profile filename specified, but run_dbscan built without profiler support" << std::endl;
+#endif
 
     State state;
     TStopwatch ts;
@@ -83,7 +90,10 @@ void test_dbscan(std::string filename, int nhits, int nskip, bool test, std::str
     Hit future_hit(10000, 110);
     dbscan_partial_add_one(state, &future_hit, eps, minPts);
     ts.Stop();
+
+#ifdef HAVE_PROFILER
     if(profile_filename!="") ProfilerStop();
+#endif
 
     // Clock is 50 MHz, but we divided the time by 100 when we read in the hits
     double data_time=(hits_sorted.back()->time - hits_sorted.front()->time)/50e4;
@@ -112,6 +122,13 @@ int main(int argc, char** argv)
 
     CLI11_PARSE(cliapp, argc, argv);
 
+#ifndef HAVE_PROFILER
+    if(profile!=""){
+        std::cerr << "Profile filename specified but run_dbscan built without profiler support" << std::endl;
+        exit(1);
+    }
+#endif
+    
     int dummy_argc=1;
     const char* dummy_argv[]={"foo"};
     TRint* app=nullptr;

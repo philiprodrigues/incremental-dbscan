@@ -6,7 +6,10 @@ set(CMAKE_MODULE_PATH
   ${CMAKE_MODULE_PATH})
 
 find_package(ROOT 6.22 CONFIG REQUIRED)
-find_package(profiler MODULE REQUIRED)
+find_package(profiler MODULE)
+if(profiler_FOUND)
+  add_compile_definitions(HAVE_PROFILER)
+endif()
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -15,4 +18,7 @@ set(CMAKE_CXX_FLAGS_DEBUG "-g")
 set(CMAKE_CXX_FLAGS_RELEASE "-O2 -march=native")
 
 add_executable(run_dbscan run_dbscan.cxx Hit.cpp)
-target_link_libraries(run_dbscan PUBLIC ROOT::Core ROOT::Graf ROOT::Rint ROOT::Gpad profiler::profiler)
+target_link_libraries(run_dbscan PUBLIC ROOT::Core ROOT::Graf ROOT::Rint ROOT::Gpad)
+if(profiler_FOUND)
+  target_link_libraries(run_dbscan PUBLIC profiler::profiler)
+endif()

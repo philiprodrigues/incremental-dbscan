@@ -1,7 +1,7 @@
 # Attempt to find perftools' libprofiler via pkgconfig
 
 find_package(PkgConfig)
-pkg_check_modules(PC_profiler QUIET REQUIRED libprofiler)
+pkg_check_modules(PC_profiler QUIET libprofiler)
 
 find_path(profiler_INCLUDE_DIR
   NAMES gperftools/profiler.h
