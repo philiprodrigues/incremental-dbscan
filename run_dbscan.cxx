@@ -1,6 +1,10 @@
 #include "dbscan.hpp"
+#include "dbscan_orig.hpp"
+#include "draw_clusters.hpp"
+
 #include "TStopwatch.h"
 #include "TRint.h"
+#include "TCanvas.h"
 
 #include <thread>
 #include <chrono>

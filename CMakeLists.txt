@@ -17,7 +17,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_FLAGS_DEBUG "-g")
 set(CMAKE_CXX_FLAGS_RELEASE "-O2 -march=native")
 
-add_executable(run_dbscan run_dbscan.cxx Hit.cpp)
+add_executable(run_dbscan run_dbscan.cxx Hit.cpp draw_clusters.cpp dbscan_orig.cpp dbscan.cpp)
 target_link_libraries(run_dbscan PUBLIC ROOT::Core ROOT::Graf ROOT::Rint ROOT::Gpad)
 if(profiler_FOUND)
   target_link_libraries(run_dbscan PUBLIC profiler::profiler)
