@@ -136,10 +136,6 @@ IncrementalDBSCAN::add_hit(Hit* new_hit)
 
     m_hits.push_back(new_hit);
     m_latest_time = new_hit->time;
-    // TODO: is it necessary to do this here? do we need the list of
-    // neighbours before looping over the clusters?
-    neighbours_sorted(m_hits, *new_hit, m_eps);
-
 
     // All the clusters that this hit neighboured. If there are
     // multiple clusters neighbouring this hit, we'll merge them at
@@ -162,10 +158,9 @@ IncrementalDBSCAN::add_hit(Hit* new_hit)
         // Try adding the new hit to this cluster
         if (cluster.maybe_add_new_hit(new_hit, m_eps, m_minPts)) {
             clusters_to_merge.push_back(clust_it);
+            cluster_reachable(cluster.latest_core_point, cluster);
         }
 
-        // TODO: should we only be doing this if we actually added the hit to this cluster?
-        cluster_reachable(cluster.latest_core_point, cluster);
 
         // Mark the cluster complete if appropriate
         if (cluster.latest_time < m_latest_time - m_eps) {
