@@ -9,7 +9,7 @@ neighbours(const std::vector<Hit*>& hits, const Hit& q, float eps)
 {
     std::vector<Hit*> ret;
     for (auto const& hit : hits) {
-        if (manhattanDist(*hit, q) <= eps) {
+        if (manhattanDist(*hit, q) < eps) {
             ret.push_back(hit);
         }
     }
