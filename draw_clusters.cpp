@@ -9,6 +9,7 @@
 #include <vector>
 #include <map>
 
+namespace dbscan {
 TCanvas*
 draw_clusters(const std::vector<Hit*>& hits)
 {
@@ -50,6 +51,7 @@ draw_clusters(const std::vector<Hit*>& hits)
     return c;
 }
 
+}
 // Local Variables:
 // mode: c++
 // c-basic-offset: 4

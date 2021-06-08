@@ -3,6 +3,7 @@
 #include "Hit.hpp"
 #include <cassert>
 
+namespace dbscan {
 std::vector<Hit*>
 neighbours(const std::vector<Hit*>& hits, const Hit& q, float eps)
 {
@@ -72,4 +73,6 @@ dbscan_orig(std::vector<Hit*>& hits, float eps, unsigned int minPts)
         }
     }
     return ret;
+}
+
 }

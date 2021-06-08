@@ -18,25 +18,25 @@
 #include "CLI11.hpp"
 
 //======================================================================
-std::vector<Hit*> get_hits(std::string name, int nhits, int nskip)
+std::vector<dbscan::Hit*> get_hits(std::string name, int nhits, int nskip)
 {
-    std::vector<Hit*> hits;
+    std::vector<dbscan::Hit*> hits;
     if(name=="simple"){
-        hits.push_back(new Hit(8.3, 101));
-        hits.push_back(new Hit(2.6, 103));
-        hits.push_back(new Hit(5.3, 104));
-        hits.push_back(new Hit(6.1, 105));
-        hits.push_back(new Hit(6.8, 106));
-        hits.push_back(new Hit(7.3, 107));
-        hits.push_back(new Hit(7.9, 108));
-        hits.push_back(new Hit(8.0, 109));
-        hits.push_back(new Hit(8.7, 110));
-        hits.push_back(new Hit(16.1, 105));
-        hits.push_back(new Hit(16.8, 106));
-        hits.push_back(new Hit(17.3, 107));
-        hits.push_back(new Hit(17.9, 108));
-        hits.push_back(new Hit(18.0, 109));
-        hits.push_back(new Hit(18.7, 110));
+        hits.push_back(new dbscan::Hit(8.3, 101));
+        hits.push_back(new dbscan::Hit(2.6, 103));
+        hits.push_back(new dbscan::Hit(5.3, 104));
+        hits.push_back(new dbscan::Hit(6.1, 105));
+        hits.push_back(new dbscan::Hit(6.8, 106));
+        hits.push_back(new dbscan::Hit(7.3, 107));
+        hits.push_back(new dbscan::Hit(7.9, 108));
+        hits.push_back(new dbscan::Hit(8.0, 109));
+        hits.push_back(new dbscan::Hit(8.7, 110));
+        hits.push_back(new dbscan::Hit(16.1, 105));
+        hits.push_back(new dbscan::Hit(16.8, 106));
+        hits.push_back(new dbscan::Hit(17.3, 107));
+        hits.push_back(new dbscan::Hit(17.9, 108));
+        hits.push_back(new dbscan::Hit(18.0, 109));
+        hits.push_back(new dbscan::Hit(18.7, 110));
     }
     else{
         std::ifstream fin(name);
@@ -48,7 +48,7 @@ std::vector<Hit*> get_hits(std::string name, int nhits, int nskip)
             if(i++<nskip) continue;
             if(nhits>0 && i>nskip+nhits) break;
 
-            hits.push_back(new Hit((timestamp-first_timestamp)/100, channel));
+            hits.push_back(new dbscan::Hit((timestamp-first_timestamp)/100, channel));
         }
     }
     return hits;
@@ -65,17 +65,17 @@ void test_dbscan(std::string filename, int nhits, int nskip, bool test, std::str
     if(test){
         // Run the naive DBSCAN implementation for comparison with the
         // incremental one
-        dbscan_orig(hits, eps, minPts);
+        dbscan::dbscan_orig(hits, eps, minPts);
         TCanvas* c=draw_clusters(hits);
         c->Print("dbscan-orig.png");
     }
 
     // Sort the hits by time for the incremental DBSCAN, which requires it
-    std::vector<Hit*> hits_sorted(hits);
-    std::sort(hits.begin(), hits.end(), [](Hit* a, Hit* b) { return a->time < b->time; });
+    std::vector<dbscan::Hit*> hits_sorted(hits);
+    std::sort(hits.begin(), hits.end(), [](dbscan::Hit* a, dbscan::Hit* b) { return a->time < b->time; });
     // If test==true, we've already set cluster indexes for the hits,
     // so we have to reset them here
-    for(auto h: hits_sorted) h->cluster=kUndefined;
+    for(auto h: hits_sorted) h->cluster=dbscan::kUndefined;
 
 #ifdef HAVE_PROFILER
     // Start the profiler here, so the profile only measures the
@@ -85,12 +85,12 @@ void test_dbscan(std::string filename, int nhits, int nskip, bool test, std::str
     if(profile_filename!="") std::cerr << "profile filename specified, but run_dbscan built without profiler support" << std::endl;
 #endif
 
-    DBSCANState state;
+    dbscan::DBSCANState state;
     TStopwatch ts;
     int i=0;
     double last_real_time=0;
     for(auto h: hits_sorted){
-        dbscan_partial_add_one(state, h, eps, minPts);
+        dbscan::dbscan_partial_add_one(state, h, eps, minPts);
         if(++i % 100000 == 0){
             double real_time=ts.RealTime();
             ts.Continue();
@@ -100,8 +100,8 @@ void test_dbscan(std::string filename, int nhits, int nskip, bool test, std::str
     }
 
     // Give it a far-future hit so it goes through all of the hits
-    Hit future_hit(10000, 110);
-    dbscan_partial_add_one(state, &future_hit, eps, minPts);
+    dbscan::Hit future_hit(10000, 110);
+    dbscan::dbscan_partial_add_one(state, &future_hit, eps, minPts);
     ts.Stop();
 
 #ifdef HAVE_PROFILER
@@ -113,7 +113,7 @@ void test_dbscan(std::string filename, int nhits, int nskip, bool test, std::str
     double processing_time=ts.RealTime();
     std::cout << "Processed " << hits_sorted.size() << " hits representing " << data_time << "s of data in " << processing_time << "s. Ratio=" << (data_time/processing_time) << std::endl;
     if(test){
-        TCanvas* c=draw_clusters(hits_sorted);
+        TCanvas* c=dbscan::draw_clusters(hits_sorted);
         c->Print("dbscan-incremental.png");
     }
 }

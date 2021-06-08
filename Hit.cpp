@@ -2,6 +2,7 @@
 
 #include <algorithm>
 
+namespace dbscan {
 //======================================================================
 HitSet::HitSet()
 {
@@ -46,6 +47,7 @@ Hit::add_potential_neighbour(Hit* other, float eps)
     return false;
 }
 
+}
 // Local Variables:
 // mode: c++
 // c-basic-offset: 4

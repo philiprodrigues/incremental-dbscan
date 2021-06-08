@@ -4,6 +4,7 @@
 #include <cmath>
 #include <list>
 
+namespace dbscan {
 //======================================================================
 
 // Special "cluster numbers" for hits that are not (yet) in a cluster
@@ -92,6 +93,7 @@ time_comp_lower(const Hit* hit, const float t)
     return hit->time < t;
 };
 
+}
 // Local Variables:
 // mode: c++
 // c-basic-offset: 4

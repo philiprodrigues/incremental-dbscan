@@ -9,6 +9,7 @@
 
 #include "Hit.hpp"
 
+namespace dbscan {
 //======================================================================
 // Find the eps-neighbours of hit q, assuming that the hits vector is sorted by time
 int
@@ -74,6 +75,8 @@ dbscan_partial_add_one(DBSCANState& state,
                        Hit* new_hit,
                        float eps,
                        unsigned int minPts);
+
+}
 
 // Local Variables:
 // mode: c++

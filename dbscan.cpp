@@ -2,6 +2,7 @@
 
 #include <cassert>
 
+namespace dbscan {
 //======================================================================
 int
 neighbours_sorted(const std::vector<Hit*>& hits, Hit& q, float eps)
@@ -211,6 +212,7 @@ dbscan_partial_add_one(DBSCANState& state,
     ++ncall;
 }
 
+}
 // Local Variables:
 // mode: c++
 // c-basic-offset: 4

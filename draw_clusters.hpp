@@ -3,6 +3,8 @@
 #include <vector>
 
 class TCanvas;
+
+namespace dbscan {
 class Hit;
 
 // Draw the hits in `hits` coloured by cluster. Return the TCanvas in
@@ -10,6 +12,7 @@ class Hit;
 TCanvas*
 draw_clusters(const std::vector<Hit*>& hits);
 
+}
 // Local Variables:
 // mode: c++
 // c-basic-offset: 4
