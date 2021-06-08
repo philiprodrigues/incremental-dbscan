@@ -5,6 +5,7 @@
 #include "TCanvas.h"
 #include "TGraph.h"
 #include "TAxis.h"
+#include "TColor.h"
 
 #include <vector>
 #include <map>
@@ -13,12 +14,23 @@ namespace dbscan {
 TCanvas*
 draw_clusters(const std::vector<Hit*>& hits)
 {
-    if (hits.empty())
+    if (hits.empty()){
         return nullptr;
+    }
+    
     TCanvas* c = new TCanvas;
-    const int nColours = 6;
-    int colours[nColours] = { kRed,         kBlue,       kGreen + 2,
-                              kMagenta + 2, kOrange + 2, kCyan + 2 };
+    std::vector<int> colours{
+        TColor::GetColor("#377eb8"),
+        TColor::GetColor("#ff7f00"),
+        TColor::GetColor("#4daf4a"),
+        TColor::GetColor("#f781bf"),
+        TColor::GetColor("#a65628"),
+        TColor::GetColor("#984ea3"),
+        TColor::GetColor("#999999"),
+        TColor::GetColor("#e41a1c"),
+        TColor::GetColor("#dede00")
+    };
+
     TGraph* grAll = new TGraph;
     std::map<int, TGraph*> grs;
     int colIndex = 0;
@@ -33,7 +45,7 @@ draw_clusters(const std::vector<Hit*>& hits)
                 gr->SetMarkerColor(kGray);
                 gr->SetMarkerStyle(2);
             } else {
-                gr->SetMarkerColor(colours[(colIndex++) % nColours]);
+                gr->SetMarkerColor(colours[(colIndex++) % colours.size()]);
             }
             gr->SetMarkerStyle(kFullSquare);
             grs[hit->cluster] = gr;
