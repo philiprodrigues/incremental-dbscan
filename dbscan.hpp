@@ -57,7 +57,10 @@ public:
         , m_minPts(minPts)
     {}
 
+    // Add a new hit. The hit time *must* be >= the time of all hits
+    // previously added
     void add_hit(Hit* new_hit);
+
 
 private:
     //======================================================================
