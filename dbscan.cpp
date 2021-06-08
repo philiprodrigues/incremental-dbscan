@@ -31,10 +31,10 @@ Cluster::maybe_add_new_hit(Hit* new_hit, float eps, int minPts)
     bool do_add = false;
 
     // Hits earlier than new_hit time minus `eps` can't possibly be
-    // neighbours, so start the search there in the sorted list of hits in this cluster
+    // neighbours, so start the search there in the sorted list of hits in this
+    // cluster
     auto begin_it = std::lower_bound(
         hits.begin(), hits.end(), new_hit->time - eps, time_comp_lower);
-
 
     for (auto it = begin_it; it != hits.end(); ++it) {
         Hit* h = *it;
@@ -71,7 +71,7 @@ Cluster::add_hit(Hit* h)
     h->cluster = index;
     latest_time = std::max(latest_time, h->time);
     if (h->connectedness == Connectedness::kCore &&
-        (!latest_core_point || h->time > latest_core_point->time)){
+        (!latest_core_point || h->time > latest_core_point->time)) {
         latest_core_point = h;
     }
 }
@@ -80,7 +80,8 @@ Cluster::add_hit(Hit* h)
 void
 Cluster::steal_hits(Cluster& other)
 {
-    // TODO: it might be faster to do some sort of explicit "merge" of the hits, eg:
+    // TODO: it might be faster to do some sort of explicit "merge" of the hits,
+    // eg:
     //
     // this->hits.insert(other hits); // Inserts at end
     // std::inplace_merge(...)
@@ -96,8 +97,7 @@ Cluster::steal_hits(Cluster& other)
 
 //======================================================================
 void
-IncrementalDBSCAN::cluster_reachable(Hit* seed_hit,
-                                     Cluster& cluster)
+IncrementalDBSCAN::cluster_reachable(Hit* seed_hit, Cluster& cluster)
 {
     // Loop over all neighbours (and the neighbours of core points, and so on)
     std::vector<Hit*> seedSet(seed_hit->neighbours.begin(),
@@ -160,7 +160,6 @@ IncrementalDBSCAN::add_hit(Hit* new_hit)
             clusters_to_merge.push_back(clust_it);
             cluster_reachable(cluster.latest_core_point, cluster);
         }
-
 
         // Mark the cluster complete if appropriate
         if (cluster.latest_time < m_latest_time - m_eps) {

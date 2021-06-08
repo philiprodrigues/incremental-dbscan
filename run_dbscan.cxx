@@ -18,10 +18,11 @@
 #include "CLI11.hpp"
 
 //======================================================================
-std::vector<dbscan::Hit*> get_hits(std::string name, int nhits, int nskip)
+std::vector<dbscan::Hit*>
+get_hits(std::string name, int nhits, int nskip)
 {
     std::vector<dbscan::Hit*> hits;
-    if(name=="simple"){
+    if (name == "simple") {
         hits.push_back(new dbscan::Hit(8.3, 101));
         hits.push_back(new dbscan::Hit(2.6, 103));
         hits.push_back(new dbscan::Hit(5.3, 104));
@@ -37,65 +38,81 @@ std::vector<dbscan::Hit*> get_hits(std::string name, int nhits, int nskip)
         hits.push_back(new dbscan::Hit(17.9, 108));
         hits.push_back(new dbscan::Hit(18.0, 109));
         hits.push_back(new dbscan::Hit(18.7, 110));
-    }
-    else{
+    } else {
         std::ifstream fin(name);
-        uint64_t timestamp, first_timestamp{0};
+        uint64_t timestamp, first_timestamp{ 0 };
         int channel;
-        int i=0;
-        while(fin >> channel >> timestamp){
-            if(first_timestamp==0) first_timestamp=timestamp;
-            if(i++<nskip) continue;
-            if(nhits>0 && i>nskip+nhits) break;
+        int i = 0;
+        while (fin >> channel >> timestamp) {
+            if (first_timestamp == 0)
+                first_timestamp = timestamp;
+            if (i++ < nskip)
+                continue;
+            if (nhits > 0 && i > nskip + nhits)
+                break;
 
-            hits.push_back(new dbscan::Hit((timestamp-first_timestamp)/100, channel));
+            hits.push_back(
+                new dbscan::Hit((timestamp - first_timestamp) / 100, channel));
         }
     }
     return hits;
 }
 
 //======================================================================
-void test_dbscan(std::string filename, int nhits, int nskip, bool test, std::string profile_filename)
+void
+test_dbscan(std::string filename,
+            int nhits,
+            int nskip,
+            bool test,
+            std::string profile_filename)
 {
-    const int minPts=2;
-    const float eps=10;
+    const int minPts = 2;
+    const float eps = 10;
 
-    auto hits=get_hits(filename, nhits, nskip);
+    auto hits = get_hits(filename, nhits, nskip);
 
-    if(test){
+    if (test) {
         // Run the naive DBSCAN implementation for comparison with the
         // incremental one
         dbscan::dbscan_orig(hits, eps, minPts);
-        TCanvas* c=draw_clusters(hits);
+        TCanvas* c = draw_clusters(hits);
         c->Print("dbscan-orig.png");
     }
 
     // Sort the hits by time for the incremental DBSCAN, which requires it
     std::vector<dbscan::Hit*> hits_sorted(hits);
-    std::sort(hits.begin(), hits.end(), [](dbscan::Hit* a, dbscan::Hit* b) { return a->time < b->time; });
+    std::sort(hits.begin(), hits.end(), [](dbscan::Hit* a, dbscan::Hit* b) {
+        return a->time < b->time;
+    });
     // If test==true, we've already set cluster indexes for the hits,
     // so we have to reset them here
-    for(auto h: hits_sorted) h->cluster=dbscan::kUndefined;
+    for (auto h : hits_sorted)
+        h->cluster = dbscan::kUndefined;
 
 #ifdef HAVE_PROFILER
     // Start the profiler here, so the profile only measures the
     // incremental DBSCAN, not the hit reading and the original DBSCAN
-    if(profile_filename!="") ProfilerStart(profile_filename.c_str());
+    if (profile_filename != "")
+        ProfilerStart(profile_filename.c_str());
 #else
-    if(profile_filename!="") std::cerr << "profile filename specified, but run_dbscan built without profiler support" << std::endl;
+    if (profile_filename != "")
+        std::cerr << "profile filename specified, but run_dbscan built without "
+                     "profiler support"
+                  << std::endl;
 #endif
 
     dbscan::IncrementalDBSCAN dbscanner(eps, minPts);
     TStopwatch ts;
-    int i=0;
-    double last_real_time=0;
-    for(auto h: hits_sorted){
+    int i = 0;
+    double last_real_time = 0;
+    for (auto h : hits_sorted) {
         dbscanner.add_hit(h);
-        if(++i % 100000 == 0){
-            double real_time=ts.RealTime();
+        if (++i % 100000 == 0) {
+            double real_time = ts.RealTime();
             ts.Continue();
-            std::cout << "100k hits took " << (real_time-last_real_time) << "s" << std::endl;
-            last_real_time=real_time;
+            std::cout << "100k hits took " << (real_time - last_real_time)
+                      << "s" << std::endl;
+            last_real_time = real_time;
         }
     }
 
@@ -105,52 +122,67 @@ void test_dbscan(std::string filename, int nhits, int nskip, bool test, std::str
     ts.Stop();
 
 #ifdef HAVE_PROFILER
-    if(profile_filename!="") ProfilerStop();
+    if (profile_filename != "")
+        ProfilerStop();
 #endif
 
     // Clock is 50 MHz, but we divided the time by 100 when we read in the hits
-    double data_time=(hits_sorted.back()->time - hits_sorted.front()->time)/50e4;
-    double processing_time=ts.RealTime();
-    std::cout << "Processed " << hits_sorted.size() << " hits representing " << data_time << "s of data in " << processing_time << "s. Ratio=" << (data_time/processing_time) << std::endl;
-    if(test){
-        TCanvas* c=dbscan::draw_clusters(hits_sorted);
+    double data_time =
+        (hits_sorted.back()->time - hits_sorted.front()->time) / 50e4;
+    double processing_time = ts.RealTime();
+    std::cout << "Processed " << hits_sorted.size() << " hits representing "
+              << data_time << "s of data in " << processing_time
+              << "s. Ratio=" << (data_time / processing_time) << std::endl;
+    if (test) {
+        TCanvas* c = dbscan::draw_clusters(hits_sorted);
         c->Print("dbscan-incremental.png");
     }
 }
 
 //======================================================================
-int main(int argc, char** argv)
+int
+main(int argc, char** argv)
 {
-    CLI::App cliapp{"Run incremental DBSCAN"};
+    CLI::App cliapp{ "Run incremental DBSCAN" };
 
-    std::string filename;;
+    std::string filename;
+    ;
     cliapp.add_option("-f,--file", filename, "Input file of hits");
-    bool test=false;
-    cliapp.add_flag("-t,--test", test, "Test mode (show event display with clusters)");
+    bool test = false;
+    cliapp.add_flag(
+        "-t,--test", test, "Test mode (show event display with clusters)");
     std::string profile;
-    cliapp.add_option("-p,--profile", profile, "Run perftools profiler with output to file");
-    int nskip=0;
-    cliapp.add_option("-s,--nskip", nskip, "Number of hits at start of file to skip");
-    int nhits=-1;
-    cliapp.add_option("-n,--nhits", nhits, "Maximum number of hits to read from file");
+    cliapp.add_option(
+        "-p,--profile", profile, "Run perftools profiler with output to file");
+    int nskip = 0;
+    cliapp.add_option(
+        "-s,--nskip", nskip, "Number of hits at start of file to skip");
+    int nhits = -1;
+    cliapp.add_option(
+        "-n,--nhits", nhits, "Maximum number of hits to read from file");
 
     CLI11_PARSE(cliapp, argc, argv);
 
 #ifndef HAVE_PROFILER
-    if(profile!=""){
-        std::cerr << "Profile filename specified but run_dbscan built without profiler support" << std::endl;
+    if (profile != "") {
+        std::cerr << "Profile filename specified but run_dbscan built without "
+                     "profiler support"
+                  << std::endl;
         exit(1);
     }
 #endif
-    
-    int dummy_argc=1;
-    const char* dummy_argv[]={"foo"};
-    // TRint is here to start up the ROOT event loop so we can display the canvases on screen
-    TRint* app=nullptr;
-    if(test) app=new TRint("foo", &dummy_argc, const_cast<char**>(dummy_argv));
+
+    int dummy_argc = 1;
+    const char* dummy_argv[] = { "foo" };
+    // TRint is here to start up the ROOT event loop so we can display the
+    // canvases on screen
+    TRint* app = nullptr;
+    if (test)
+        app = new TRint("foo", &dummy_argc, const_cast<char**>(dummy_argv));
 
     test_dbscan(filename, nhits, nskip, test, profile);
-    if(test) app->Run();
+    if (test)
+        app->Run();
     delete app;
     return 0;
 }

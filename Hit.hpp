@@ -21,7 +21,7 @@ enum class Connectedness
     kNoise,     // Fewer than minPts neighbours, not in a cluster
     kCore,      // minPts neighbours or more
     kEdge       // Fewer than minPts neighbours, part of a cluster
-    // clang-format on
+          // clang-format on
 };
 
 //======================================================================

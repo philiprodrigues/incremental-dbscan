@@ -11,7 +11,8 @@
 
 namespace dbscan {
 //======================================================================
-// Find the eps-neighbours of hit q, assuming that the hits vector is sorted by time
+// Find the eps-neighbours of hit q, assuming that the hits vector is sorted by
+// time
 int
 neighbours_sorted(const std::vector<Hit*>& hits, Hit& q, float eps);
 
@@ -54,27 +55,24 @@ public:
     IncrementalDBSCAN(float eps, unsigned int minPts)
         : m_eps(eps)
         , m_minPts(minPts)
-        {}
-    
+    {}
+
     void add_hit(Hit* new_hit);
 
 private:
-
     //======================================================================
     //
     // Starting from `seed_hit`, find all the reachable hits and add them
     // to `cluster`
-    void cluster_reachable(Hit* seed_hit,
-                           Cluster& cluster);
+    void cluster_reachable(Hit* seed_hit, Cluster& cluster);
 
     float m_eps;
     float m_minPts;
     std::vector<Hit*> m_hits; // All the hits we've seen so far, in time order
     float m_latest_time{ 0 }; // The latest time of a hit in the vector of hits
-    std::list<Cluster> m_clusters; // All of the currently-active (ie, kIncomplete) clusters
+    std::list<Cluster>
+        m_clusters; // All of the currently-active (ie, kIncomplete) clusters
 };
-
-
 
 }
 
