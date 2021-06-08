@@ -45,36 +45,36 @@ struct Cluster
 };
 
 //======================================================================
-
-// A class to hold the state of the DBSCAN algorithm between calls to
-// dbscan_partial_add_one
-struct DBSCANState
-{
-    std::vector<Hit*> hits; // All the hits we've seen so far, in time order
-    float latest_time{ 0 }; // The latest time of a hit in the vector of hits
-    std::list<Cluster> clusters; // All of the currently-active (ie, kIncomplete) clusters
-};
-
-//======================================================================
-//
-// Starting from `seed_hit`, find all the reachable hits and add them
-// to `cluster`
-void
-cluster_reachable(DBSCANState& state,
-                  Hit* seed_hit,
-                  Cluster& cluster,
-                  float eps,
-                  unsigned int minPts);
-
-//======================================================================
 //
 // Modified DBSCAN algorithm that takes one hit at a time, with the requirement
 // that the hits are passed in time order
-void
-dbscan_partial_add_one(DBSCANState& state,
-                       Hit* new_hit,
-                       float eps,
-                       unsigned int minPts);
+class IncrementalDBSCAN
+{
+public:
+    IncrementalDBSCAN(float eps, unsigned int minPts)
+        : m_eps(eps)
+        , m_minPts(minPts)
+        {}
+    
+    void add_hit(Hit* new_hit);
+
+private:
+
+    //======================================================================
+    //
+    // Starting from `seed_hit`, find all the reachable hits and add them
+    // to `cluster`
+    void cluster_reachable(Hit* seed_hit,
+                           Cluster& cluster);
+
+    float m_eps;
+    float m_minPts;
+    std::vector<Hit*> m_hits; // All the hits we've seen so far, in time order
+    float m_latest_time{ 0 }; // The latest time of a hit in the vector of hits
+    std::list<Cluster> m_clusters; // All of the currently-active (ie, kIncomplete) clusters
+};
+
+
 
 }
 

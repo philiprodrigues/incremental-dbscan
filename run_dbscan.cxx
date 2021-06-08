@@ -85,12 +85,12 @@ void test_dbscan(std::string filename, int nhits, int nskip, bool test, std::str
     if(profile_filename!="") std::cerr << "profile filename specified, but run_dbscan built without profiler support" << std::endl;
 #endif
 
-    dbscan::DBSCANState state;
+    dbscan::IncrementalDBSCAN dbscanner(eps, minPts);
     TStopwatch ts;
     int i=0;
     double last_real_time=0;
     for(auto h: hits_sorted){
-        dbscan::dbscan_partial_add_one(state, h, eps, minPts);
+        dbscanner.add_hit(h);
         if(++i % 100000 == 0){
             double real_time=ts.RealTime();
             ts.Continue();
@@ -101,7 +101,7 @@ void test_dbscan(std::string filename, int nhits, int nskip, bool test, std::str
 
     // Give it a far-future hit so it goes through all of the hits
     dbscan::Hit future_hit(10000, 110);
-    dbscan::dbscan_partial_add_one(state, &future_hit, eps, minPts);
+    dbscanner.add_hit(&future_hit);
     ts.Stop();
 
 #ifdef HAVE_PROFILER

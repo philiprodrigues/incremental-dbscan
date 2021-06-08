@@ -3,6 +3,7 @@
 #include <cassert>
 
 namespace dbscan {
+
 //======================================================================
 int
 neighbours_sorted(const std::vector<Hit*>& hits, Hit& q, float eps)
@@ -95,11 +96,8 @@ Cluster::steal_hits(Cluster& other)
 
 //======================================================================
 void
-cluster_reachable(DBSCANState& state,
-                  Hit* seed_hit,
-                  Cluster& cluster,
-                  float eps,
-                  unsigned int minPts)
+IncrementalDBSCAN::cluster_reachable(Hit* seed_hit,
+                                     Cluster& cluster)
 {
     // Loop over all neighbours (and the neighbours of core points, and so on)
     std::vector<Hit*> seedSet(seed_hit->neighbours.begin(),
@@ -121,7 +119,7 @@ cluster_reachable(DBSCANState& state,
         cluster.add_hit(q);
 
         // If q is a core point, add its neighbours to the search list
-        if (q->neighbours.size() + 1 >= minPts) {
+        if (q->neighbours.size() + 1 >= m_minPts) {
             q->connectedness = Connectedness::kCore;
             seedSet.insert(
                 seedSet.end(), q->neighbours.begin(), q->neighbours.end());
@@ -131,19 +129,16 @@ cluster_reachable(DBSCANState& state,
 
 //======================================================================
 void
-dbscan_partial_add_one(DBSCANState& state,
-                       Hit* new_hit,
-                       float eps,
-                       unsigned int minPts)
+IncrementalDBSCAN::add_hit(Hit* new_hit)
 {
     static int ncall = 0;
     static int next_cluster_index = 0;
 
-    state.hits.push_back(new_hit);
-    state.latest_time = new_hit->time;
+    m_hits.push_back(new_hit);
+    m_latest_time = new_hit->time;
     // TODO: is it necessary to do this here? do we need the list of
     // neighbours before looping over the clusters?
-    neighbours_sorted(state.hits, *new_hit, eps);
+    neighbours_sorted(m_hits, *new_hit, m_eps);
 
 
     // All the clusters that this hit neighboured. If there are
@@ -152,29 +147,28 @@ dbscan_partial_add_one(DBSCANState& state,
     using cluster_iterator = std::list<Cluster>::iterator;
     std::vector<cluster_iterator> clusters_to_merge;
 
-    auto clust_it = state.clusters.begin();
+    auto clust_it = m_clusters.begin();
 
-    while (clust_it != state.clusters.end()) {
+    while (clust_it != m_clusters.end()) {
         Cluster& cluster = *clust_it;
 
         // If this cluster was already marked as complete, the new hit
         // can't be part of it. Skip it and remove from the list
         if (cluster.completeness == Completeness::kComplete) {
-            clust_it = state.clusters.erase(clust_it);
+            clust_it = m_clusters.erase(clust_it);
             continue;
         }
 
         // Try adding the new hit to this cluster
-        if (cluster.maybe_add_new_hit(new_hit, eps, minPts)) {
+        if (cluster.maybe_add_new_hit(new_hit, m_eps, m_minPts)) {
             clusters_to_merge.push_back(clust_it);
         }
 
         // TODO: should we only be doing this if we actually added the hit to this cluster?
-        cluster_reachable(
-            state, cluster.latest_core_point, cluster, eps, minPts);
+        cluster_reachable(cluster.latest_core_point, cluster);
 
         // Mark the cluster complete if appropriate
-        if (cluster.latest_time < state.latest_time - eps) {
+        if (cluster.latest_time < m_latest_time - m_eps) {
             cluster.completeness = Completeness::kComplete;
         }
 
@@ -194,18 +188,18 @@ dbscan_partial_add_one(DBSCANState& state,
         // in any cluster. If this hit has enough neighbours, it
         // should seed a new cluster
 
-        neighbours_sorted(state.hits, *new_hit, eps);
+        neighbours_sorted(m_hits, *new_hit, m_eps);
 
-        if (new_hit->neighbours.size() + 1 >= minPts) {
+        if (new_hit->neighbours.size() + 1 >= m_minPts) {
             new_hit->connectedness = Connectedness::kCore;
-            Cluster& new_cluster = state.clusters.emplace_back();
+            Cluster& new_cluster = m_clusters.emplace_back();
             new_cluster.index = next_cluster_index++;
             new_cluster.completeness = Completeness::kIncomplete;
             new_cluster.add_hit(new_hit);
             for (auto& neighbour : new_hit->neighbours) {
                 new_cluster.add_hit(neighbour);
             }
-            cluster_reachable(state, new_hit, new_cluster, eps, minPts);
+            cluster_reachable(new_hit, new_cluster);
         }
     }
 
