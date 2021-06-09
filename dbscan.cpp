@@ -210,9 +210,9 @@ void IncrementalDBSCAN::trim_hits()
         earliest_time=std::min(earliest_time, (*cluster.hits.begin())->time);
     }
 
-    // If there were no clusters, set the earliest_time to zero (otherwise it would still be FLOAT_MAX)
+    // If there were no clusters, set the earliest_time to the latest time (otherwise it would still be FLOAT_MAX)
     if(m_clusters.empty()){
-        earliest_time=0;
+        earliest_time=m_latest_time;
     }
     auto last_it = std::lower_bound(
         m_hits.begin(), m_hits.end(), earliest_time - 10*m_eps, time_comp_lower);
