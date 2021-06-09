@@ -26,11 +26,13 @@ draw_clusters(const std::vector<Hit*>& hits)
         TColor::GetColor("#f781bf"),
         TColor::GetColor("#a65628"),
         TColor::GetColor("#984ea3"),
-        TColor::GetColor("#999999"),
+        // TColor::GetColor("#999999"),
         TColor::GetColor("#e41a1c"),
         TColor::GetColor("#dede00")
     };
 
+    int noiseColour=TColor::GetColor("#b0b0b0");
+    
     TGraph* grAll = new TGraph;
     std::map<int, TGraph*> grs;
     int colIndex = 0;
@@ -40,14 +42,16 @@ draw_clusters(const std::vector<Hit*>& hits)
         if (grs.find(hit->cluster) == grs.end()) {
             TGraph* gr = new TGraph;
             if (hit->cluster == kNoise) {
-                gr->SetMarkerColor(kGray);
+                gr->SetMarkerColor(noiseColour);
+                gr->SetMarkerStyle(5);
             } else if (hit->cluster == kUndefined) {
-                gr->SetMarkerColor(kGray);
-                gr->SetMarkerStyle(2);
+                gr->SetMarkerColor(noiseColour);
+                gr->SetMarkerStyle(5);
             } else {
                 gr->SetMarkerColor(colours[(colIndex++) % colours.size()]);
+                gr->SetMarkerStyle(kFullSquare);
             }
-            gr->SetMarkerStyle(kFullSquare);
+
             grs[hit->cluster] = gr;
         }
         TGraph* gr = grs[hit->cluster];
