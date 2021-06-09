@@ -114,6 +114,7 @@ test_dbscan(std::string filename,
                       << "s" << std::endl;
             last_real_time = real_time;
         }
+        dbscanner.trim_hits();
     }
 
     // Give it a far-future hit so it goes through all of the hits

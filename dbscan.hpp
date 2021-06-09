@@ -61,7 +61,7 @@ public:
     // previously added
     void add_hit(Hit* new_hit);
 
-
+    void trim_hits();
 private:
     //======================================================================
     //

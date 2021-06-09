@@ -1,6 +1,7 @@
 #include "dbscan.hpp"
 
 #include <cassert>
+#include <limits>
 
 namespace dbscan {
 
@@ -200,6 +201,25 @@ IncrementalDBSCAN::add_hit(Hit* new_hit)
     ++ncall;
 }
 
+void IncrementalDBSCAN::trim_hits()
+{
+    // Find the earliest time of a hit in any cluster in the list (active or not)
+    float earliest_time=std::numeric_limits<float>::max();
+
+    for(auto& cluster: m_clusters){
+        earliest_time=std::min(earliest_time, (*cluster.hits.begin())->time);
+    }
+
+    // If there were no clusters, set the earliest_time to zero (otherwise it would still be FLOAT_MAX)
+    if(m_clusters.empty()){
+        earliest_time=0;
+    }
+    auto last_it = std::lower_bound(
+        m_hits.begin(), m_hits.end(), earliest_time - 10*m_eps, time_comp_lower);
+    
+    m_hits.erase(m_hits.begin(), last_it);
+}
+    
 }
 // Local Variables:
 // mode: c++
