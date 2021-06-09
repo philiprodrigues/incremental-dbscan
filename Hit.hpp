@@ -81,9 +81,19 @@ struct Hit
 
 //======================================================================
 inline float
-manhattanDist(const Hit& p, const Hit& q)
+manhattan_distance(const Hit& p, const Hit& q)
 {
     return fabs((p.time - q.time)) + fabs(p.chan - q.chan);
+}
+
+//======================================================================
+template<class T> inline T sqr(T x) { return x*x; }
+    
+//======================================================================
+inline float
+euclidean_distance(const Hit& p, const Hit& q)
+{
+    return std::sqrt(sqr(p.time - q.time) + sqr(p.chan - q.chan));
 }
 
 //======================================================================

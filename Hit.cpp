@@ -38,7 +38,7 @@ Hit::Hit(float _time, int _chan)
 bool
 Hit::add_potential_neighbour(Hit* other, float eps)
 {
-    if (other != this && manhattanDist(*this, *other) < eps) {
+    if (other != this && euclidean_distance(*this, *other) < eps) {
         neighbours.insert(other);
         // Neighbourliness is symmetric
         other->neighbours.insert(this);
