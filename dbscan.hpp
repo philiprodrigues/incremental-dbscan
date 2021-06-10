@@ -14,7 +14,7 @@ namespace dbscan {
 // Find the eps-neighbours of hit q, assuming that the hits vector is sorted by
 // time
 int
-neighbours_sorted(const std::vector<Hit*>& hits, Hit& q, float eps);
+neighbours_sorted(const std::vector<Hit*>& hits, Hit& q, float eps, int minPts);
 
 //======================================================================
 struct Cluster
@@ -62,6 +62,10 @@ public:
     void add_hit(Hit* new_hit);
 
     void trim_hits();
+
+    std::vector<Hit*> get_hits() const { return m_hits; }
+
+    std::list<Cluster> get_clusters() const { return m_clusters; }
 private:
     //======================================================================
     //

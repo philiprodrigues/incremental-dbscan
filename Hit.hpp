@@ -70,8 +70,9 @@ struct Hit
 
     // Add hit `other` to this hit's list of neighbours if they are
     // closer than `eps`. Return true if so
-    bool add_potential_neighbour(Hit* other, float eps);
+    bool add_potential_neighbour(Hit* other, float eps, int minPts);
 
+    
     float time;
     int chan, cluster;
     Connectedness connectedness;

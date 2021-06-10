@@ -36,12 +36,18 @@ Hit::Hit(float _time, int _chan)
 
 // Return true if hit was indeed a neighbour
 bool
-Hit::add_potential_neighbour(Hit* other, float eps)
+Hit::add_potential_neighbour(Hit* other, float eps, int minPts)
 {
     if (other != this && euclidean_distance(*this, *other) < eps) {
         neighbours.insert(other);
+        if(neighbours.size() + 1 >= minPts){
+            connectedness=Connectedness::kCore;
+        }
         // Neighbourliness is symmetric
         other->neighbours.insert(this);
+        if(other->neighbours.size() + 1 >= minPts){
+            other->connectedness=Connectedness::kCore;
+        }
         return true;
     }
     return false;

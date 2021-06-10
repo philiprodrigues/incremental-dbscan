@@ -1,4 +1,5 @@
 #include "dbscan.hpp"
+#include "Hit.hpp"
 
 #include <cassert>
 #include <limits>
@@ -7,7 +8,7 @@ namespace dbscan {
 
 //======================================================================
 int
-neighbours_sorted(const std::vector<Hit*>& hits, Hit& q, float eps)
+neighbours_sorted(const std::vector<Hit*>& hits, Hit& q, float eps, int minPts)
 {
     int n = 0;
     // Loop over the hits starting from the latest hit, since we will
@@ -18,7 +19,7 @@ neighbours_sorted(const std::vector<Hit*>& hits, Hit& q, float eps)
         if ((*hit_it)->time < q.time - eps)
             break;
 
-        if (q.add_potential_neighbour(*hit_it, eps))
+        if (q.add_potential_neighbour(*hit_it, eps, minPts))
             ++n;
     }
     return n;
@@ -39,7 +40,7 @@ Cluster::maybe_add_new_hit(Hit* new_hit, float eps, int minPts)
 
     for (auto it = begin_it; it != hits.end(); ++it) {
         Hit* h = *it;
-        if (h->add_potential_neighbour(new_hit, eps)) {
+        if (h->add_potential_neighbour(new_hit, eps, minPts)) {
             do_add = true;
             if (h->neighbours.size() + 1 >= minPts) {
                 h->connectedness = Connectedness::kCore;
@@ -107,7 +108,6 @@ IncrementalDBSCAN::cluster_reachable(Hit* seed_hit, Cluster& cluster)
     while (!seedSet.empty()) {
         Hit* q = seedSet.back();
         seedSet.pop_back();
-
         // Change noise to a border point
         if (q->connectedness == Connectedness::kNoise) {
             cluster.add_hit(q);
@@ -159,6 +159,13 @@ IncrementalDBSCAN::add_hit(Hit* new_hit)
         // Try adding the new hit to this cluster
         if (cluster.maybe_add_new_hit(new_hit, m_eps, m_minPts)) {
             clusters_to_merge.push_back(clust_it);
+            // Make sure all the neighbours of the new point are added to the cluster
+            neighbours_sorted(m_hits, *new_hit, m_eps, m_minPts);
+            for(auto q: new_hit->neighbours){
+                if(q->cluster==kUndefined || q->cluster==kNoise){
+                    cluster.add_hit(q);
+                }
+            }
             cluster_reachable(cluster.latest_core_point, cluster);
         }
 
@@ -183,7 +190,7 @@ IncrementalDBSCAN::add_hit(Hit* new_hit)
         // in any cluster. If this hit has enough neighbours, it
         // should seed a new cluster
 
-        neighbours_sorted(m_hits, *new_hit, m_eps);
+        neighbours_sorted(m_hits, *new_hit, m_eps, m_minPts);
 
         if (new_hit->neighbours.size() + 1 >= m_minPts) {
             new_hit->connectedness = Connectedness::kCore;
