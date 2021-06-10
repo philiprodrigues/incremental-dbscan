@@ -131,8 +131,7 @@ test_dbscan(std::string filename,
     std::cout << "Copying hit vector for incremental dbscan" << std::endl;
     std::vector<dbscan::Hit*> hits_inc;
     for(auto h: hits) {
-        hits_inc.push_back(new dbscan::Hit(*h));
-        hits_inc.back()->cluster = dbscan::kUndefined;
+        hits_inc.push_back(new dbscan::Hit(h->time, h->chan));
     }
 
 #ifdef HAVE_PROFILER
