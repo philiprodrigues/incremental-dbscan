@@ -166,7 +166,6 @@ IncrementalDBSCAN::add_hit(Hit* new_hit)
                     cluster.add_hit(q);
                 }
             }
-            cluster_reachable(cluster.latest_core_point, cluster);
         }
 
         // Mark the cluster complete if appropriate
