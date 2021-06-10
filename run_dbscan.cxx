@@ -1,3 +1,4 @@
+#include "Hit.hpp"
 #include "dbscan.hpp"
 #include "dbscan_orig.hpp"
 #include "draw_clusters.hpp"
@@ -10,6 +11,7 @@
 #include <chrono>
 #include <fstream>
 #include <string>
+#include <cassert>
 
 #ifdef HAVE_PROFILER
 #include "gperftools/profiler.h"
@@ -59,6 +61,43 @@ get_hits(std::string name, int nhits, int nskip)
 }
 
 //======================================================================
+bool compare_clusters(std::vector<dbscan::Hit*>& v1,
+                      std::vector<dbscan::Hit*>& v2)
+{
+    assert(v1.size()==v2.size());
+
+    bool same=true;
+    // Map from cluster index in v1 to cluster index in v2
+    std::map<int, int> index_map;
+
+    for(size_t i=0; i<v1.size(); ++i){
+        dbscan::Hit* hit1=v1[i];
+        dbscan::Hit* hit2=v2[i];
+        if(hit1->time!=hit2->time || hit1->chan!=hit2->chan){
+            std::cout << "Mismatched input vectors" << std::endl;
+            same=false;
+            break;
+        }
+
+        int index1=hit1->cluster;
+        if(index1<0) index1=-1;
+        int index2=hit2->cluster;
+        if(index2<0) index2=-1;
+
+        if(index_map.count(index1)){
+            if(index2 != index_map[index1]){
+                std::cout << "(" << hit1->time << ", " << hit1->chan << ") has cluster " << hit1->cluster << " but (" << hit2->time << ", " << hit2->chan << ") has cluster " << hit2->cluster << std::endl;
+                same=false;
+            }
+        }
+        else{
+            index_map[index1]=index2;
+        }
+    }
+    return same;
+}
+
+//======================================================================
 void
 test_dbscan(std::string filename,
             int nhits,
@@ -69,25 +108,32 @@ test_dbscan(std::string filename,
     const int minPts = 2;
     const float eps = 10;
 
+    std::cout << "Reading hits" << std::endl;
     auto hits = get_hits(filename, nhits, nskip);
+    std::cout << "Sorting hits" << std::endl;
+    // Sort the hits by time for the incremental DBSCAN, which
+    // requires it. We'll also give regular DBSCAN the sorted hits,
+    // which will make later comparisons easier
+    std::sort(hits.begin(), hits.end(), [](dbscan::Hit* a, dbscan::Hit* b) {
+        return a->time < b->time;
+    });
 
     if (test) {
         // Run the naive DBSCAN implementation for comparison with the
         // incremental one
+        std::cout << "Running dbscan_orig" << std::endl;
         dbscan::dbscan_orig(hits, eps, minPts);
         TCanvas* c = draw_clusters(hits);
         c->Print("dbscan-orig.png");
     }
 
-    // Sort the hits by time for the incremental DBSCAN, which requires it
-    std::vector<dbscan::Hit*> hits_sorted(hits);
-    std::sort(hits.begin(), hits.end(), [](dbscan::Hit* a, dbscan::Hit* b) {
-        return a->time < b->time;
-    });
-    // If test==true, we've already set cluster indexes for the hits,
-    // so we have to reset them here
-    for (auto h : hits_sorted)
-        h->cluster = dbscan::kUndefined;
+    // We make a copy so we can compare the output of dbscan_orig and IncrementalDBSCAN
+    std::cout << "Copying hit vector for incremental dbscan" << std::endl;
+    std::vector<dbscan::Hit*> hits_inc;
+    for(auto h: hits) {
+        hits_inc.push_back(new dbscan::Hit(*h));
+        hits_inc.back()->cluster = dbscan::kUndefined;
+    }
 
 #ifdef HAVE_PROFILER
     // Start the profiler here, so the profile only measures the
@@ -101,11 +147,12 @@ test_dbscan(std::string filename,
                   << std::endl;
 #endif
 
+    std::cout << "Running incremental dbscan" << std::endl;
     dbscan::IncrementalDBSCAN dbscanner(eps, minPts);
     TStopwatch ts;
     int i = 0;
     double last_real_time = 0;
-    for (auto h : hits_sorted) {
+    for (auto h : hits_inc) {
         dbscanner.add_hit(h);
         if (++i % 100000 == 0) {
             double real_time = ts.RealTime();
@@ -129,15 +176,25 @@ test_dbscan(std::string filename,
 
     // Clock is 50 MHz, but we divided the time by 100 when we read in the hits
     double data_time =
-        (hits_sorted.back()->time - hits_sorted.front()->time) / 50e4;
+        (hits_inc.back()->time - hits_inc.front()->time) / 50e4;
     double processing_time = ts.RealTime();
-    std::cout << "Processed " << hits_sorted.size() << " hits representing "
+    std::cout << "Processed " << hits_inc.size() << " hits representing "
               << data_time << "s of data in " << processing_time
               << "s. Ratio=" << (data_time / processing_time) << std::endl;
     if (test) {
-        TCanvas* c = dbscan::draw_clusters(hits_sorted);
+        TCanvas* c = dbscan::draw_clusters(hits_inc);
         c->Print("dbscan-incremental.png");
+
+        bool same=compare_clusters(hits, hits_inc);
+        if(same){
+            std::cout << "dbscan_orig and incremental results matched" << std::endl;
+        }
+        else{
+            std::cout << "dbscan_orig and incremental results differed" << std::endl;
+        }
     }
+
+
 }
 
 //======================================================================
