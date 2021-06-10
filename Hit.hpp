@@ -76,7 +76,6 @@ struct Hit
     float time;
     int chan, cluster;
     Connectedness connectedness;
-    Completeness completeness;
     HitSet neighbours;
 };
 

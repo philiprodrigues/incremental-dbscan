@@ -48,14 +48,6 @@ Cluster::maybe_add_new_hit(Hit* new_hit, float eps, int minPts)
                 h->connectedness = Connectedness::kEdge;
             }
         }
-
-        // Mark any hits that are now completed
-        bool completed_this_iteration =
-            h->completeness == Completeness::kIncomplete &&
-            h->time < new_hit->time - eps;
-        if (completed_this_iteration) {
-            h->completeness = Completeness::kComplete;
-        }
     } // end loop over hits in cluster
 
     if (do_add) {

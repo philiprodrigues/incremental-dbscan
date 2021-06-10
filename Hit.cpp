@@ -29,7 +29,6 @@ Hit::Hit(float _time, int _chan)
     , chan(_chan)
     , cluster(kUndefined)
     , connectedness(Connectedness::kUndefined)
-    , completeness(Completeness::kIncomplete)
 {}
 
 //======================================================================
