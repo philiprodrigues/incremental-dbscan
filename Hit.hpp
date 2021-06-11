@@ -101,6 +101,13 @@ euclidean_distance(const Hit& p, const Hit& q)
 }
 
 //======================================================================
+inline float
+euclidean_distance_sqr(const Hit& p, const Hit& q)
+{
+    return sqr(p.time - q.time) + sqr(p.chan - q.chan);
+}
+
+//======================================================================
 inline bool
 time_comp_lower(const Hit* hit, const float t)
 {

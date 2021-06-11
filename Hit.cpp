@@ -38,7 +38,7 @@ Hit::Hit(float _time, int _chan)
 bool
 Hit::add_potential_neighbour(Hit* other, float eps, int minPts)
 {
-    if (other != this && euclidean_distance(*this, *other) < eps) {
+    if (other != this && euclidean_distance_sqr(*this, *other) < eps*eps) {
         neighbours.insert(other);
         if (neighbours.size() + 1 >= minPts) {
             connectedness = Connectedness::kCore;
