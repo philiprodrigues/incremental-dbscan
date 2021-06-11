@@ -13,14 +13,13 @@ HitSet::HitSet()
 void
 HitSet::insert(Hit* h)
 {
-    auto time_comp_lower = [](const Hit* hit, const float t) {
-        return hit->time < t;
-    };
-    auto it =
-        std::lower_bound(hits.begin(), hits.end(), h->time, time_comp_lower);
-    if (it == hits.end() || *it != h) {
-        hits.insert(it, h);
+    // We're typically inserting hits at or near the end, so do a
+    // linear scan instead of full binary search. This turns out to be much faster in our case
+    auto it=hits.rbegin();
+    while(it!=hits.rend() && (*it)->time > h->time) {
+        ++it;
     }
+    if(it==hits.rend() || *it!=h) hits.insert(it.base(), h);
 }
 
 //======================================================================
