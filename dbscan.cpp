@@ -139,22 +139,24 @@ IncrementalDBSCAN::add_hit(Hit* new_hit)
     // Find all the hit's neighbours
     neighbours_sorted(m_hits, *new_hit, m_eps, m_minPts);
 
-    for(auto neighbour : new_hit->neighbours){
-        if(neighbour->cluster != kUndefined && neighbour->cluster != kNoise){
-            // This neighbour is in a cluster. Add the cluster to the list of clusters that will contain this hit
+    for (auto neighbour : new_hit->neighbours) {
+        if (neighbour->cluster != kUndefined && neighbour->cluster != kNoise) {
+            // This neighbour is in a cluster. Add the cluster to the list of
+            // clusters that will contain this hit
             clusters_neighbouring_hit.insert(neighbour->cluster);
         }
     }
 
-    if(clusters_neighbouring_hit.empty()){
+    if (clusters_neighbouring_hit.empty()) {
         // This hit didn't match any existing cluster. See if we can
         // make a new cluster out of it. Otherwise mark it as noise
 
         if (new_hit->neighbours.size() + 1 >= m_minPts) {
-            
+
             new_hit->connectedness = Connectedness::kCore;
-            auto new_it = m_clusters.emplace_hint(m_clusters.end(), next_cluster_index, next_cluster_index);
-            Cluster& new_cluster=new_it->second;
+            auto new_it = m_clusters.emplace_hint(
+                m_clusters.end(), next_cluster_index, next_cluster_index);
+            Cluster& new_cluster = new_it->second;
             new_cluster.completeness = Completeness::kIncomplete;
             new_cluster.add_hit(new_hit);
             for (auto& neighbour : new_hit->neighbours) {
@@ -162,39 +164,35 @@ IncrementalDBSCAN::add_hit(Hit* new_hit)
             }
             next_cluster_index++;
         }
-    }
-    else {
+    } else {
         // This hit neighboured at least one cluster. Add the hit and
         // its noise neighbours to the first cluster in the list, then
         // merge the rest of the clusters into it
 
-        auto index_it=clusters_neighbouring_hit.begin();
-        
-        
-        for(auto const cit : m_clusters){
-            
+        auto index_it = clusters_neighbouring_hit.begin();
+
+        for (auto const cit : m_clusters) {
         }
-        auto it=m_clusters.find(*index_it);
-        assert(it!=m_clusters.end());
-        Cluster& cluster=it->second;
+        auto it = m_clusters.find(*index_it);
+        assert(it != m_clusters.end());
+        Cluster& cluster = it->second;
         cluster.add_hit(new_hit);
 
-        for(auto q: new_hit->neighbours){
-            if(q->cluster==kUndefined || q->cluster==kNoise){
+        for (auto q : new_hit->neighbours) {
+            if (q->cluster == kUndefined || q->cluster == kNoise) {
                 cluster.add_hit(q);
             }
         }
 
         ++index_it;
-        
-        for(; index_it!=clusters_neighbouring_hit.end(); ++index_it){
-            
-            auto other_it=m_clusters.find(*index_it);
-            assert(other_it!=m_clusters.end());
-            Cluster& other_cluster=other_it->second;
+
+        for (; index_it != clusters_neighbouring_hit.end(); ++index_it) {
+
+            auto other_it = m_clusters.find(*index_it);
+            assert(other_it != m_clusters.end());
+            Cluster& other_cluster = other_it->second;
             cluster.steal_hits(other_cluster);
         }
-
     }
 
     // Delete any completed clusters from the list
@@ -205,32 +203,37 @@ IncrementalDBSCAN::add_hit(Hit* new_hit)
         if (cluster.latest_time < m_latest_time - m_eps) {
             cluster.completeness = Completeness::kComplete;
         }
-        
+
         if (cluster.completeness == Completeness::kComplete) {
             clust_it = m_clusters.erase(clust_it);
             continue;
-        }
-        else {
+        } else {
             ++clust_it;
         }
     }
 }
 
-void IncrementalDBSCAN::trim_hits()
+void
+IncrementalDBSCAN::trim_hits()
 {
-    // Find the earliest time of a hit in any cluster in the list (active or not)
-    float earliest_time=std::numeric_limits<float>::max();
+    // Find the earliest time of a hit in any cluster in the list (active or
+    // not)
+    float earliest_time = std::numeric_limits<float>::max();
 
-    for(auto& cluster: m_clusters){
-        earliest_time=std::min(earliest_time, (*cluster.second.hits.begin())->time);
+    for (auto& cluster : m_clusters) {
+        earliest_time =
+            std::min(earliest_time, (*cluster.second.hits.begin())->time);
     }
 
-    // If there were no clusters, set the earliest_time to the latest time (otherwise it would still be FLOAT_MAX)
-    if(m_clusters.empty()){
-        earliest_time=m_latest_time;
+    // If there were no clusters, set the earliest_time to the latest time
+    // (otherwise it would still be FLOAT_MAX)
+    if (m_clusters.empty()) {
+        earliest_time = m_latest_time;
     }
-    auto last_it = std::lower_bound(
-        m_hits.begin(), m_hits.end(), earliest_time - 10*m_eps, time_comp_lower);
+    auto last_it = std::lower_bound(m_hits.begin(),
+                                    m_hits.end(),
+                                    earliest_time - 10 * m_eps,
+                                    time_comp_lower);
 
     m_hits.erase(m_hits.begin(), last_it);
 }

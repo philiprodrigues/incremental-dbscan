@@ -20,8 +20,8 @@ neighbours_sorted(const std::vector<Hit*>& hits, Hit& q, float eps, int minPts);
 struct Cluster
 {
     Cluster(int index_)
-        : index{index_}
-        {}
+        : index{ index_ }
+    {}
     // The index of this cluster
     int index{ -1 };
     // A cluster is kComplete if its hits are all kComplete, so no
@@ -68,7 +68,8 @@ public:
 
     std::vector<Hit*> get_hits() const { return m_hits; }
 
-    std::map<int,Cluster> get_clusters() const { return m_clusters; }
+    std::map<int, Cluster> get_clusters() const { return m_clusters; }
+
 private:
     //======================================================================
     //
@@ -80,7 +81,7 @@ private:
     float m_minPts;
     std::vector<Hit*> m_hits; // All the hits we've seen so far, in time order
     float m_latest_time{ 0 }; // The latest time of a hit in the vector of hits
-    std::map<int,Cluster>
+    std::map<int, Cluster>
         m_clusters; // All of the currently-active (ie, kIncomplete) clusters
 };
 

@@ -72,7 +72,6 @@ struct Hit
     // closer than `eps`. Return true if so
     bool add_potential_neighbour(Hit* other, float eps, int minPts);
 
-    
     float time;
     int chan, cluster;
     Connectedness connectedness;
@@ -87,8 +86,13 @@ manhattan_distance(const Hit& p, const Hit& q)
 }
 
 //======================================================================
-template<class T> inline T sqr(T x) { return x*x; }
-    
+template<class T>
+inline T
+sqr(T x)
+{
+    return x * x;
+}
+
 //======================================================================
 inline float
 euclidean_distance(const Hit& p, const Hit& q)

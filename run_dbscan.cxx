@@ -61,37 +61,41 @@ get_hits(std::string name, int nhits, int nskip)
 }
 
 //======================================================================
-bool compare_clusters(std::vector<dbscan::Hit*>& v1,
-                      std::vector<dbscan::Hit*>& v2)
+bool
+compare_clusters(std::vector<dbscan::Hit*>& v1, std::vector<dbscan::Hit*>& v2)
 {
-    assert(v1.size()==v2.size());
+    assert(v1.size() == v2.size());
 
-    bool same=true;
+    bool same = true;
     // Map from cluster index in v1 to cluster index in v2
     std::map<int, int> index_map;
 
-    for(size_t i=0; i<v1.size(); ++i){
-        dbscan::Hit* hit1=v1[i];
-        dbscan::Hit* hit2=v2[i];
-        if(hit1->time!=hit2->time || hit1->chan!=hit2->chan){
+    for (size_t i = 0; i < v1.size(); ++i) {
+        dbscan::Hit* hit1 = v1[i];
+        dbscan::Hit* hit2 = v2[i];
+        if (hit1->time != hit2->time || hit1->chan != hit2->chan) {
             std::cout << "Mismatched input vectors" << std::endl;
-            same=false;
+            same = false;
             break;
         }
 
-        int index1=hit1->cluster;
-        if(index1<0) index1=-1;
-        int index2=hit2->cluster;
-        if(index2<0) index2=-1;
+        int index1 = hit1->cluster;
+        if (index1 < 0)
+            index1 = -1;
+        int index2 = hit2->cluster;
+        if (index2 < 0)
+            index2 = -1;
 
-        if(index_map.count(index1)){
-            if(index2 != index_map[index1]){
-                std::cout << "(" << hit1->time << ", " << hit1->chan << ") has cluster " << hit1->cluster << " but (" << hit2->time << ", " << hit2->chan << ") has cluster " << hit2->cluster << std::endl;
-                same=false;
+        if (index_map.count(index1)) {
+            if (index2 != index_map[index1]) {
+                std::cout << "(" << hit1->time << ", " << hit1->chan
+                          << ") has cluster " << hit1->cluster << " but ("
+                          << hit2->time << ", " << hit2->chan
+                          << ") has cluster " << hit2->cluster << std::endl;
+                same = false;
             }
-        }
-        else{
-            index_map[index1]=index2;
+        } else {
+            index_map[index1] = index2;
         }
     }
     return same;
@@ -127,10 +131,11 @@ test_dbscan(std::string filename,
         c->Print("dbscan-orig.png");
     }
 
-    // We make a copy so we can compare the output of dbscan_orig and IncrementalDBSCAN
+    // We make a copy so we can compare the output of dbscan_orig and
+    // IncrementalDBSCAN
     std::cout << "Copying hit vector for incremental dbscan" << std::endl;
     std::vector<dbscan::Hit*> hits_inc;
-    for(auto h: hits) {
+    for (auto h : hits) {
         hits_inc.push_back(new dbscan::Hit(h->time, h->chan));
     }
 
@@ -174,8 +179,7 @@ test_dbscan(std::string filename,
 #endif
 
     // Clock is 50 MHz, but we divided the time by 100 when we read in the hits
-    double data_time =
-        (hits_inc.back()->time - hits_inc.front()->time) / 50e4;
+    double data_time = (hits_inc.back()->time - hits_inc.front()->time) / 50e4;
     double processing_time = ts.RealTime();
     std::cout << "Processed " << hits_inc.size() << " hits representing "
               << data_time << "s of data in " << processing_time
@@ -184,16 +188,15 @@ test_dbscan(std::string filename,
         TCanvas* c = dbscan::draw_clusters(hits_inc);
         c->Print("dbscan-incremental.png");
 
-        bool same=compare_clusters(hits, hits_inc);
-        if(same){
-            std::cout << "dbscan_orig and incremental results matched" << std::endl;
-        }
-        else{
-            std::cout << "dbscan_orig and incremental results differed" << std::endl;
+        bool same = compare_clusters(hits, hits_inc);
+        if (same) {
+            std::cout << "dbscan_orig and incremental results matched"
+                      << std::endl;
+        } else {
+            std::cout << "dbscan_orig and incremental results differed"
+                      << std::endl;
         }
     }
-
-
 }
 
 //======================================================================
