@@ -124,7 +124,8 @@ IncrementalDBSCAN::cluster_reachable(Hit* seed_hit, Cluster& cluster)
 void
 IncrementalDBSCAN::add_hit(Hit* new_hit)
 {
-    static int ncall = 0;
+    // TODO: this should be a member variable, not a static, in case
+    // there are multiple IncrementalDBSCAN instances
     static int next_cluster_index = 0;
 
     m_hits.push_back(new_hit);
@@ -133,70 +134,86 @@ IncrementalDBSCAN::add_hit(Hit* new_hit)
     // All the clusters that this hit neighboured. If there are
     // multiple clusters neighbouring this hit, we'll merge them at
     // the end
-    using cluster_iterator = std::list<Cluster>::iterator;
-    std::vector<cluster_iterator> clusters_to_merge;
+    std::set<int> clusters_neighbouring_hit;
 
-    auto clust_it = m_clusters.begin();
+    // Find all the hit's neighbours
+    neighbours_sorted(m_hits, *new_hit, m_eps, m_minPts);
 
-    while (clust_it != m_clusters.end()) {
-        Cluster& cluster = *clust_it;
-
-        // If this cluster was already marked as complete, the new hit
-        // can't be part of it. Skip it and remove from the list
-        if (cluster.completeness == Completeness::kComplete) {
-            clust_it = m_clusters.erase(clust_it);
-            continue;
-        }
-
-        // Try adding the new hit to this cluster
-        if (cluster.maybe_add_new_hit(new_hit, m_eps, m_minPts)) {
-            clusters_to_merge.push_back(clust_it);
-            // Make sure all the neighbours of the new point are added to the cluster
-            neighbours_sorted(m_hits, *new_hit, m_eps, m_minPts);
-            for(auto q: new_hit->neighbours){
-                if(q->cluster==kUndefined || q->cluster==kNoise){
-                    cluster.add_hit(q);
-                }
-            }
-        }
-
-        // Mark the cluster complete if appropriate
-        if (cluster.latest_time < m_latest_time - m_eps) {
-            cluster.completeness = Completeness::kComplete;
-        }
-
-        ++clust_it;
-    } // end loop over clusters
-
-    // Merge any clusters that need merging
-    if (clusters_to_merge.size() >= 2) {
-        cluster_iterator into = clusters_to_merge.front();
-        for (size_t i = 1; i < clusters_to_merge.size(); ++i) {
-            into->steal_hits(*clusters_to_merge[i]);
+    for(auto neighbour : new_hit->neighbours){
+        if(neighbour->cluster != kUndefined && neighbour->cluster != kNoise){
+            // This neighbour is in a cluster. Add the cluster to the list of clusters that will contain this hit
+            clusters_neighbouring_hit.insert(neighbour->cluster);
         }
     }
 
-    if (new_hit->cluster == kUndefined) {
-        // If we get here, the new hit wasn't a neighbour of any hit
-        // in any cluster. If this hit has enough neighbours, it
-        // should seed a new cluster
-
-        neighbours_sorted(m_hits, *new_hit, m_eps, m_minPts);
+    if(clusters_neighbouring_hit.empty()){
+        // This hit didn't match any existing cluster. See if we can
+        // make a new cluster out of it. Otherwise mark it as noise
 
         if (new_hit->neighbours.size() + 1 >= m_minPts) {
+            
             new_hit->connectedness = Connectedness::kCore;
-            Cluster& new_cluster = m_clusters.emplace_back();
-            new_cluster.index = next_cluster_index++;
+            auto new_it = m_clusters.emplace_hint(m_clusters.end(), next_cluster_index, next_cluster_index);
+            Cluster& new_cluster=new_it->second;
             new_cluster.completeness = Completeness::kIncomplete;
             new_cluster.add_hit(new_hit);
             for (auto& neighbour : new_hit->neighbours) {
                 new_cluster.add_hit(neighbour);
             }
-            cluster_reachable(new_hit, new_cluster);
+            next_cluster_index++;
         }
     }
+    else {
+        // This hit neighboured at least one cluster. Add the hit and
+        // its noise neighbours to the first cluster in the list, then
+        // merge the rest of the clusters into it
 
-    ++ncall;
+        auto index_it=clusters_neighbouring_hit.begin();
+        
+        
+        for(auto const cit : m_clusters){
+            
+        }
+        auto it=m_clusters.find(*index_it);
+        assert(it!=m_clusters.end());
+        Cluster& cluster=it->second;
+        cluster.add_hit(new_hit);
+
+        for(auto q: new_hit->neighbours){
+            if(q->cluster==kUndefined || q->cluster==kNoise){
+                cluster.add_hit(q);
+            }
+        }
+
+        ++index_it;
+        
+        for(; index_it!=clusters_neighbouring_hit.end(); ++index_it){
+            
+            auto other_it=m_clusters.find(*index_it);
+            assert(other_it!=m_clusters.end());
+            Cluster& other_cluster=other_it->second;
+            cluster.steal_hits(other_cluster);
+        }
+
+    }
+
+    // Delete any completed clusters from the list
+    auto clust_it = m_clusters.begin();
+    while (clust_it != m_clusters.end()) {
+        Cluster& cluster = clust_it->second;
+
+        if (cluster.latest_time < m_latest_time - m_eps) {
+            cluster.completeness = Completeness::kComplete;
+        }
+        
+        if (cluster.completeness == Completeness::kComplete) {
+            clust_it = m_clusters.erase(clust_it);
+            continue;
+        }
+        else {
+            ++clust_it;
+        }
+    }
 }
 
 void IncrementalDBSCAN::trim_hits()
@@ -205,7 +222,7 @@ void IncrementalDBSCAN::trim_hits()
     float earliest_time=std::numeric_limits<float>::max();
 
     for(auto& cluster: m_clusters){
-        earliest_time=std::min(earliest_time, (*cluster.hits.begin())->time);
+        earliest_time=std::min(earliest_time, (*cluster.second.hits.begin())->time);
     }
 
     // If there were no clusters, set the earliest_time to the latest time (otherwise it would still be FLOAT_MAX)
@@ -214,10 +231,10 @@ void IncrementalDBSCAN::trim_hits()
     }
     auto last_it = std::lower_bound(
         m_hits.begin(), m_hits.end(), earliest_time - 10*m_eps, time_comp_lower);
-    
+
     m_hits.erase(m_hits.begin(), last_it);
 }
-    
+
 }
 // Local Variables:
 // mode: c++
