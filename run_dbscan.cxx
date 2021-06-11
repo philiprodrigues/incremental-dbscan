@@ -107,11 +107,10 @@ test_dbscan(std::string filename,
             int nhits,
             int nskip,
             bool test,
-            std::string profile_filename)
+            std::string profile_filename,
+            int minPts,
+            float eps)
 {
-    const int minPts = 2;
-    const float eps = 10;
-
     std::cout << "Reading hits" << std::endl;
     auto hits = get_hits(filename, nhits, nskip);
     std::cout << "Sorting hits" << std::endl;
@@ -220,6 +219,12 @@ main(int argc, char** argv)
     int nhits = -1;
     cliapp.add_option(
         "-n,--nhits", nhits, "Maximum number of hits to read from file");
+    int minPts = 2;
+    cliapp.add_option(
+        "-m,--minpts", minPts, "Minimum number of hits to form a cluster");
+    float eps=10;
+    cliapp.add_option(
+        "-d,--distance", eps, "Distance threshold for points to be neighbours");
 
     CLI11_PARSE(cliapp, argc, argv);
 
@@ -240,7 +245,7 @@ main(int argc, char** argv)
     if (test)
         app = new TRint("foo", &dummy_argc, const_cast<char**>(dummy_argv));
 
-    test_dbscan(filename, nhits, nskip, test, profile);
+    test_dbscan(filename, nhits, nskip, test, profile, minPts, eps);
     if (test)
         app->Run();
     delete app;
