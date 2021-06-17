@@ -140,8 +140,9 @@ IncrementalDBSCAN::add_hit(Hit* new_hit)
     neighbours_sorted(m_hits, *new_hit, m_eps, m_minPts);
 
     for (auto neighbour : new_hit->neighbours) {
-        if (neighbour->cluster != kUndefined && neighbour->cluster != kNoise) {
-            // This neighbour is in a cluster. Add the cluster to the list of
+        if (neighbour->cluster != kUndefined && neighbour->cluster != kNoise &&
+            neighbour->neighbours.size() + 1 >= m_minPts) {
+            // This neighbour is a core point in a cluster. Add the cluster to the list of
             // clusters that will contain this hit
             clusters_neighbouring_hit.insert(neighbour->cluster);
         }
@@ -160,6 +161,7 @@ IncrementalDBSCAN::add_hit(Hit* new_hit)
             new_cluster.completeness = Completeness::kIncomplete;
             new_cluster.add_hit(new_hit);
             next_cluster_index++;
+            cluster_reachable(new_hit, new_cluster);
         }
         else{
             // std::cout << "New hit time " << new_hit->time << " with " << new_hit->neighbours.size() << " neighbours is noise" << std::endl;
@@ -177,6 +179,10 @@ IncrementalDBSCAN::add_hit(Hit* new_hit)
         // std::cout << "Adding hit time " << new_hit->time << " with " << new_hit->neighbours.size() << " neighbours to existing cluster" << std::endl;
         cluster.add_hit(new_hit);
 
+        // TODO: this seems wrong: we're adding this hit's neighbours
+        // to the cluster even if this hit isn't a core point, but if
+        // I wrap the whole thing in "if(new_hit is core)" then the
+        // results differ from classic DBSCAN
         for (auto q : new_hit->neighbours) {
             if (q->cluster == kUndefined || q->cluster == kNoise) {
                 // std::cout << "  Adding hit time " << q->time << " to existing cluster" << std::endl;
@@ -192,6 +198,7 @@ IncrementalDBSCAN::add_hit(Hit* new_hit)
             }
         }
 
+
         ++index_it;
 
         for (; index_it != clusters_neighbouring_hit.end(); ++index_it) {
@@ -203,17 +210,22 @@ IncrementalDBSCAN::add_hit(Hit* new_hit)
         }
     }
 
+    // Last case: new_hit and its neighbour are both noise, but the
+    // addition of new_hit makes the neighbour a core point. So we
+    // start a new cluster at the neighbour, and walk out from there
     for (auto& neighbour : new_hit->neighbours) {
         if(neighbour->neighbours.size() + 1 >= m_minPts){
             // std::cout << "new_hit's neighbour at " << neighbour->time << " has " << neighbour->neighbours.size() << " neighbours, so is core" << std::endl;
             if(neighbour->cluster==kNoise || neighbour->cluster==kUndefined){
-                auto new_it = m_clusters.emplace_hint(
-                    m_clusters.end(), next_cluster_index, next_cluster_index);
-                Cluster& new_cluster = new_it->second;
-                new_cluster.completeness = Completeness::kIncomplete;
-                new_cluster.add_hit(neighbour);
-                next_cluster_index++;
-                cluster_reachable(neighbour, new_cluster);
+                if(new_hit->cluster==kNoise || new_hit->cluster==kUndefined){
+                    auto new_it = m_clusters.emplace_hint(
+                                                          m_clusters.end(), next_cluster_index, next_cluster_index);
+                    Cluster& new_cluster = new_it->second;
+                    new_cluster.completeness = Completeness::kIncomplete;
+                    new_cluster.add_hit(neighbour);
+                    next_cluster_index++;
+                    cluster_reachable(neighbour, new_cluster);
+                }
             }
         }
         else {
