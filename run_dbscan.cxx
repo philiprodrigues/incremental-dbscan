@@ -78,7 +78,7 @@ compare_clusters(std::vector<dbscan::Hit*>& v1, std::vector<dbscan::Hit*>& v2)
         dbscan::Hit* hit2 = v2[i];
         if (hit1->time != hit2->time || hit1->chan != hit2->chan) {
             std::cout << "Mismatched input vectors" << std::endl;
-            same = false;
+            all_same = false;
             break;
         }
 
@@ -121,6 +121,7 @@ test_dbscan(std::string filename,
             int nhits,
             int nskip,
             bool test,
+            bool plot,
             std::string profile_filename,
             int minPts,
             float eps)
@@ -140,8 +141,10 @@ test_dbscan(std::string filename,
         // incremental one
         std::cout << "Running dbscan_orig" << std::endl;
         dbscan::dbscan_orig(hits, eps, minPts);
-        TCanvas* c = draw_clusters(hits);
-        c->Print("dbscan-orig.png");
+        if(plot){
+            TCanvas* c = draw_clusters(hits);
+            c->Print("dbscan-orig.png");
+        }
     }
 
     // We make a copy so we can compare the output of dbscan_orig and
@@ -197,10 +200,12 @@ test_dbscan(std::string filename,
     std::cout << "Processed " << hits_inc.size() << " hits representing "
               << data_time << "s of data in " << processing_time
               << "s. Ratio=" << (data_time / processing_time) << std::endl;
-    if (test) {
+    if (plot) {
         TCanvas* c = dbscan::draw_clusters(hits_inc);
         c->Print("dbscan-incremental.png");
+    }
 
+    if (test) {
         bool same = compare_clusters(hits, hits_inc);
         if (same) {
             std::cout << "dbscan_orig and incremental results matched"
@@ -223,7 +228,9 @@ main(int argc, char** argv)
     cliapp.add_option("-f,--file", filename, "Input file of hits");
     bool test = false;
     cliapp.add_flag(
-        "-t,--test", test, "Test mode (show event display with clusters)");
+        "-t,--test", test, "Test mode (compare to original dbscan)");
+    bool plot = false;
+    cliapp.add_flag("--plot", plot, "Plot results");
     std::string profile;
     cliapp.add_option(
         "-p,--profile", profile, "Run perftools profiler with output to file");
@@ -256,11 +263,11 @@ main(int argc, char** argv)
     // TRint is here to start up the ROOT event loop so we can display the
     // canvases on screen
     TRint* app = nullptr;
-    if (test)
+    if (plot)
         app = new TRint("foo", &dummy_argc, const_cast<char**>(dummy_argv));
 
-    test_dbscan(filename, nhits, nskip, test, profile, minPts, eps);
-    if (test)
+    test_dbscan(filename, nhits, nskip, test, plot, profile, minPts, eps);
+    if (plot)
         app->Run();
     delete app;
     return 0;
