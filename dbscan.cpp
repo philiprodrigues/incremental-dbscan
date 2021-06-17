@@ -152,17 +152,17 @@ IncrementalDBSCAN::add_hit(Hit* new_hit)
         // make a new cluster out of it. Otherwise mark it as noise
 
         if (new_hit->neighbours.size() + 1 >= m_minPts) {
-
+            // std::cout << "New cluster starting at hit time " << new_hit->time << " with " << new_hit->neighbours.size() << " neighbours" << std::endl;
             new_hit->connectedness = Connectedness::kCore;
             auto new_it = m_clusters.emplace_hint(
                 m_clusters.end(), next_cluster_index, next_cluster_index);
             Cluster& new_cluster = new_it->second;
             new_cluster.completeness = Completeness::kIncomplete;
             new_cluster.add_hit(new_hit);
-            for (auto& neighbour : new_hit->neighbours) {
-                new_cluster.add_hit(neighbour);
-            }
             next_cluster_index++;
+        }
+        else{
+            // std::cout << "New hit time " << new_hit->time << " with " << new_hit->neighbours.size() << " neighbours is noise" << std::endl;
         }
     } else {
         // This hit neighboured at least one cluster. Add the hit and
@@ -171,16 +171,24 @@ IncrementalDBSCAN::add_hit(Hit* new_hit)
 
         auto index_it = clusters_neighbouring_hit.begin();
 
-        for (auto const cit : m_clusters) {
-        }
         auto it = m_clusters.find(*index_it);
         assert(it != m_clusters.end());
         Cluster& cluster = it->second;
+        // std::cout << "Adding hit time " << new_hit->time << " with " << new_hit->neighbours.size() << " neighbours to existing cluster" << std::endl;
         cluster.add_hit(new_hit);
 
         for (auto q : new_hit->neighbours) {
             if (q->cluster == kUndefined || q->cluster == kNoise) {
+                // std::cout << "  Adding hit time " << q->time << " to existing cluster" << std::endl;
                 cluster.add_hit(q);
+            }
+            // If the neighbouring hit q has exactly m_minPts
+            // neighbours, it must have become a core point by the
+            // addition of new_hit. Add q's neighbours to the cluster
+            if(q->neighbours.size() + 1 == m_minPts){
+                for (auto r : q->neighbours) {
+                    cluster.add_hit(r);
+                }
             }
         }
 
@@ -194,6 +202,25 @@ IncrementalDBSCAN::add_hit(Hit* new_hit)
             cluster.steal_hits(other_cluster);
         }
     }
+
+    for (auto& neighbour : new_hit->neighbours) {
+        if(neighbour->neighbours.size() + 1 >= m_minPts){
+            // std::cout << "new_hit's neighbour at " << neighbour->time << " has " << neighbour->neighbours.size() << " neighbours, so is core" << std::endl;
+            if(neighbour->cluster==kNoise || neighbour->cluster==kUndefined){
+                auto new_it = m_clusters.emplace_hint(
+                    m_clusters.end(), next_cluster_index, next_cluster_index);
+                Cluster& new_cluster = new_it->second;
+                new_cluster.completeness = Completeness::kIncomplete;
+                new_cluster.add_hit(neighbour);
+                next_cluster_index++;
+                cluster_reachable(neighbour, new_cluster);
+            }
+        }
+        else {
+            // std::cout << "new_hit's neighbour at " << neighbour->time << " has " << neighbour->neighbours.size() << " neighbours, so is NOT core" << std::endl;
+        }
+    }
+
 
     // Delete any completed clusters from the list
     auto clust_it = m_clusters.begin();
