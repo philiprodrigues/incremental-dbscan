@@ -1,4 +1,6 @@
 #include "Hit.hpp"
+#include "Point.hpp"
+
 #include "dbscan.hpp"
 #include "dbscan_orig.hpp"
 #include "draw_clusters.hpp"
@@ -18,12 +20,6 @@
 #endif
 
 #include "CLI11.hpp"
-
-struct Point
-{
-    int chan;
-    float time;
-};
 
 //======================================================================
 std::vector<Point>
@@ -140,9 +136,9 @@ test_dbscan(std::string filename,
         // incremental one
         auto hits=points_to_hits(points);
         std::cout << "Running dbscan_orig" << std::endl;
-        dbscan::dbscan_orig(hits, eps, minPts);
+        auto clusters=dbscan::dbscan_orig(hits, eps, minPts);
         if(plot){
-            TCanvas* c = draw_clusters(hits);
+            TCanvas* c = draw_clusters(clusters, points);
             c->Print("dbscan-orig.png");
         }
     }
@@ -187,7 +183,7 @@ test_dbscan(std::string filename,
 
     // Give it a far-future hit so it goes through all of the hits
     Point future_point{110, 10000000};
-    dbscanner.add_point(future_point.time, future_point.chan);
+    dbscanner.add_point(future_point.time, future_point.chan, &clusters);
     ts.Stop();
 
 #ifdef HAVE_PROFILER
@@ -203,10 +199,10 @@ test_dbscan(std::string filename,
               << data_time << "s of data in " << processing_time
               << "s. Ratio=" << (data_time / processing_time) << std::endl;
 
-    // if (plot) {
-    //     TCanvas* c = dbscan::draw_clusters(hits_inc);
-    //     c->Print("dbscan-incremental.png");
-    // }
+    if (plot) {
+        TCanvas* c = dbscan::draw_clusters(clusters, points);
+        c->Print("dbscan-incremental.png");
+    }
 
     // if (test) {
     //     bool same = compare_clusters(hits, hits_inc);

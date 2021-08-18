@@ -1,4 +1,5 @@
 #include "dbscan_orig.hpp"
+#include "dbscan.hpp"
 
 #include "Hit.hpp"
 #include <cassert>
@@ -15,12 +16,13 @@ neighbours(const std::vector<Hit*>& hits, const Hit& q, float eps)
     }
     return ret;
 }
-std::vector<std::vector<Hit*>>
+    
+std::vector<Cluster>
 dbscan_orig(std::vector<Hit*>& hits, float eps, unsigned int minPts)
 {
-    std::vector<std::vector<Hit*>> ret;
+    std::vector<Cluster> ret;
 
-    int cluster = -1; // The index of the current cluster
+    int clusterIndex = -1; // The index of the current cluster
 
     for (auto& p : hits) {
         if (p->cluster != kUndefined)
@@ -34,12 +36,13 @@ dbscan_orig(std::vector<Hit*>& hits, float eps, unsigned int minPts)
             p->cluster = kNoise;
             continue;
         }
-        cluster++;
-        ret.resize(cluster + 1);
+        clusterIndex++;
+        ret.emplace_back(clusterIndex);
+        Cluster& current_cluster = ret.back();
 
         // Assign this core point to the current cluster
-        p->cluster = cluster;
-        ret[cluster].push_back(p);
+        p->cluster = clusterIndex;
+        current_cluster.add_hit(p);
         // Seed set is all the neighbours of p except for p
         std::vector<Hit*> seedSet;
         for (auto const& n : nbr) {
@@ -60,11 +63,11 @@ dbscan_orig(std::vector<Hit*>& hits, float eps, unsigned int minPts)
             seedSet.pop_back();
             // Change noise to a border point
             if (q->cluster == kNoise)
-                q->cluster = cluster;
+                q->cluster = clusterIndex;
             if (q->cluster != kUndefined)
                 continue;
-            q->cluster = cluster;
-            ret[cluster].push_back(q);
+            q->cluster = clusterIndex;
+            current_cluster.add_hit(q);
             // Neighbours of q
             std::vector<Hit*> nbrq = neighbours(hits, *q, eps);
             // If q is a core point, add its neighbours to the search list
