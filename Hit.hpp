@@ -61,7 +61,7 @@ public:
 
     void clear() { hits.clear(); }
 
-    size_t size() { return hits.size(); }
+    size_t size() const { return hits.size(); }
 
     std::vector<Hit*> hits;
 };
