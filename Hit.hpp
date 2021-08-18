@@ -56,6 +56,9 @@ public:
     std::vector<Hit*>::iterator begin() { return hits.begin(); }
     std::vector<Hit*>::iterator end() { return hits.end(); }
 
+    std::vector<Hit*>::const_iterator begin() const { return hits.cbegin(); }
+    std::vector<Hit*>::const_iterator end() const { return hits.cend(); }
+
     void clear() { hits.clear(); }
 
     size_t size() { return hits.size(); }
