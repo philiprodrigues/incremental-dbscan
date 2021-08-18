@@ -18,11 +18,17 @@ HitSet::insert(Hit* h)
     // linear scan instead of full binary search. This turns out to be much
     // faster in our case
     auto it = hits.rbegin();
-    while (it != hits.rend() && (*it)->time > h->time) {
+    while (it != hits.rend() && (*it)->time >= h->time) {
+        // Don't insert the hit if we already have it
+        if (*it == h) {
+            return;
+        }
         ++it;
     }
-    if (it == hits.rend() || *it != h)
+    
+    if (it == hits.rend() || *it != h) {
         hits.insert(it.base(), h);
+    }
 }
 
 //======================================================================
