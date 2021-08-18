@@ -8,7 +8,7 @@ namespace dbscan {
 
 //======================================================================
 int
-neighbours_sorted(const std::vector<Hit*>& hits, Hit& q, float eps, int minPts)
+neighbours_sorted(const folly::fbvector<Hit*>& hits, Hit& q, float eps, int minPts)
 {
     int n = 0;
     // Loop over the hits starting from the latest hit, since we will
@@ -94,7 +94,7 @@ void
 IncrementalDBSCAN::cluster_reachable(Hit* seed_hit, Cluster& cluster)
 {
     // Loop over all neighbours (and the neighbours of core points, and so on)
-    std::vector<Hit*> seedSet(seed_hit->neighbours.begin(),
+    folly::fbvector<Hit*> seedSet(seed_hit->neighbours.begin(),
                               seed_hit->neighbours.end());
 
     while (!seedSet.empty()) {
@@ -122,7 +122,7 @@ IncrementalDBSCAN::cluster_reachable(Hit* seed_hit, Cluster& cluster)
 
 //======================================================================
 void
-IncrementalDBSCAN::add_point(float time, float channel, std::vector<Cluster>* completed_clusters)
+IncrementalDBSCAN::add_point(float time, float channel, folly::fbvector<Cluster>* completed_clusters)
 {
     Hit& new_hit=m_hit_pool[m_pool_end];
     new_hit.reset(time, channel);
@@ -133,7 +133,7 @@ IncrementalDBSCAN::add_point(float time, float channel, std::vector<Cluster>* co
     
 //======================================================================
 void
-IncrementalDBSCAN::add_hit(Hit* new_hit, std::vector<Cluster>* completed_clusters)
+IncrementalDBSCAN::add_hit(Hit* new_hit, folly::fbvector<Cluster>* completed_clusters)
 {
     // TODO: this should be a member variable, not a static, in case
     // there are multiple IncrementalDBSCAN instances

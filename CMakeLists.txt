@@ -5,6 +5,7 @@ set(CMAKE_MODULE_PATH
   ${CMAKE_CURRENT_SOURCE_DIR}/cmake
   ${CMAKE_MODULE_PATH})
 
+find_package(folly REQUIRED) 
 find_package(ROOT 6.22 CONFIG REQUIRED)
 find_package(profiler MODULE)
 if(profiler_FOUND)
@@ -18,7 +19,7 @@ set(CMAKE_CXX_FLAGS_DEBUG "-g")
 set(CMAKE_CXX_FLAGS_RELEASE "-O2 -march=native")
 
 add_executable(run_dbscan run_dbscan.cxx Hit.cpp draw_clusters.cpp dbscan_orig.cpp dbscan.cpp)
-target_link_libraries(run_dbscan PUBLIC ROOT::Core ROOT::Graf ROOT::Rint ROOT::Gpad)
+target_link_libraries(run_dbscan PUBLIC ROOT::Core ROOT::Graf ROOT::Rint ROOT::Gpad Folly::folly)
 if(profiler_FOUND)
   target_link_libraries(run_dbscan PUBLIC profiler::profiler)
 endif()

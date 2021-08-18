@@ -22,10 +22,10 @@
 #include "CLI11.hpp"
 
 //======================================================================
-std::vector<Point>
+folly::fbvector<Point>
 get_points(std::string name, int nhits, int nskip)
 {
-    std::vector<Point> points;
+    folly::fbvector<Point> points;
 
     std::ifstream fin(name);
     uint64_t timestamp, first_timestamp{ 0 };
@@ -45,10 +45,10 @@ get_points(std::string name, int nhits, int nskip)
     return points;
 }
 
-std::vector<dbscan::Hit*>
-points_to_hits(const std::vector<Point>& points)
+folly::fbvector<dbscan::Hit*>
+points_to_hits(const folly::fbvector<Point>& points)
 {
-    std::vector<dbscan::Hit*> ret;
+    folly::fbvector<dbscan::Hit*> ret;
     for(auto const& p: points){
         ret.push_back(new dbscan::Hit(p.time, p.chan));
     }
@@ -78,7 +78,7 @@ void print_cluster_hits(const dbscan::Cluster& cluster)
 
 //======================================================================
 bool
-compare_clusters(std::vector<dbscan::Cluster>& clusters1, std::vector<dbscan::Cluster>& clusters2)
+compare_clusters(folly::fbvector<dbscan::Cluster>& clusters1, folly::fbvector<dbscan::Cluster>& clusters2)
 {
     bool ok=true;
     
@@ -193,7 +193,7 @@ test_dbscan(std::string filename,
         return a.time < b.time;
     });
 
-    std::vector<dbscan::Cluster> clusters_orig;
+    folly::fbvector<dbscan::Cluster> clusters_orig;
     if (test) {
         // Run the naive DBSCAN implementation for comparison with the
         // incremental one
@@ -210,7 +210,7 @@ test_dbscan(std::string filename,
     // // We make a copy so we can compare the output of dbscan_orig and
     // // IncrementalDBSCAN
     // std::cout << "Copying hit vector for incremental dbscan" << std::endl;
-    // std::vector<dbscan::Hit*> hits_inc;
+    // folly::fbvector<dbscan::Hit*> hits_inc;
     // for (auto h : hits) {
     //     hits_inc.push_back(new dbscan::Hit(h->time, h->chan));
     // }
@@ -232,7 +232,7 @@ test_dbscan(std::string filename,
     TStopwatch ts;
     int i = 0;
     double last_real_time = 0;
-    std::vector<dbscan::Cluster> clusters;
+    folly::fbvector<dbscan::Cluster> clusters;
     for (auto p : points) {
         dbscanner.add_point(p.time, p.chan, &clusters);
         if (++i % 100000 == 0) {

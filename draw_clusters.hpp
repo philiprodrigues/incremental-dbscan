@@ -3,7 +3,7 @@
 #include "dbscan.hpp"
 #include "Point.hpp"
 
-#include <vector>
+#include "folly/FBVector.h"
 
 class TCanvas;
 
@@ -13,7 +13,7 @@ class Hit;
 // Draw the clusters in the list. Return the TCanvas in
 // which they're drawn
 TCanvas*
-draw_clusters(const std::vector<Cluster>& clusters, const std::vector<Point>& points);
+draw_clusters(const folly::fbvector<Cluster>& clusters, const folly::fbvector<Point>& points);
 
 }
 // Local Variables:

@@ -1,6 +1,7 @@
 #pragma once
 
-#include <vector>
+#include "folly/FBVector.h"
+
 #include <cmath>
 #include <list>
 
@@ -42,7 +43,7 @@ class Hit;
 //======================================================================
 
 // An array of unique hits, sorted by time. The actual container
-// implementation is a std::vector, which seems to be faster than a
+// implementation is a folly::fbvector, which seems to be faster than a
 // std::set (needs rechecking)
 class HitSet
 {
@@ -53,17 +54,17 @@ public:
     // array sorted by time
     void insert(Hit* h);
 
-    std::vector<Hit*>::iterator begin() { return hits.begin(); }
-    std::vector<Hit*>::iterator end() { return hits.end(); }
+    folly::fbvector<Hit*>::iterator begin() { return hits.begin(); }
+    folly::fbvector<Hit*>::iterator end() { return hits.end(); }
 
-    std::vector<Hit*>::const_iterator begin() const { return hits.cbegin(); }
-    std::vector<Hit*>::const_iterator end() const { return hits.cend(); }
+    folly::fbvector<Hit*>::const_iterator begin() const { return hits.cbegin(); }
+    folly::fbvector<Hit*>::const_iterator end() const { return hits.cend(); }
 
     void clear() { hits.clear(); }
 
     size_t size() const { return hits.size(); }
 
-    std::vector<Hit*> hits;
+    folly::fbvector<Hit*> hits;
 };
 
 //======================================================================

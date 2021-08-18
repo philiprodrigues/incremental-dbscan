@@ -1,6 +1,7 @@
 #pragma once
 
-#include <vector>
+#include "folly/FBVector.h"
+
 #include <map>
 #include <iostream>
 #include <algorithm> // For std::lower_bound
@@ -14,7 +15,7 @@ namespace dbscan {
 // Find the eps-neighbours of hit q, assuming that the hits vector is sorted by
 // time
 int
-neighbours_sorted(const std::vector<Hit*>& hits, Hit& q, float eps, int minPts);
+neighbours_sorted(const folly::fbvector<Hit*>& hits, Hit& q, float eps, int minPts);
 
 //======================================================================
 struct Cluster
@@ -66,15 +67,15 @@ public:
         }
     }
 
-    void add_point(float time, float channel, std::vector<Cluster>* completed_clusters=nullptr);
+    void add_point(float time, float channel, folly::fbvector<Cluster>* completed_clusters=nullptr);
     
     // Add a new hit. The hit time *must* be >= the time of all hits
     // previously added
-    void add_hit(Hit* new_hit, std::vector<Cluster>* completed_clusters=nullptr);
+    void add_hit(Hit* new_hit, folly::fbvector<Cluster>* completed_clusters=nullptr);
 
     void trim_hits();
 
-    std::vector<Hit*> get_hits() const { return m_hits; }
+    folly::fbvector<Hit*> get_hits() const { return m_hits; }
 
     std::map<int, Cluster> get_clusters() const { return m_clusters; }
 
@@ -87,9 +88,9 @@ private:
 
     float m_eps;
     float m_minPts;
-    std::vector<Hit> m_hit_pool;
+    folly::fbvector<Hit> m_hit_pool;
     size_t m_pool_begin, m_pool_end;
-    std::vector<Hit*> m_hits; // All the hits we've seen so far, in time order
+    folly::fbvector<Hit*> m_hits; // All the hits we've seen so far, in time order
     float m_latest_time{ 0 }; // The latest time of a hit in the vector of hits
     std::map<int, Cluster>
         m_clusters; // All of the currently-active (ie, kIncomplete) clusters

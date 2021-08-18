@@ -8,12 +8,11 @@
 #include "TAxis.h"
 #include "TColor.h"
 
-#include <vector>
 #include <map>
 
 namespace dbscan {
 TCanvas*
-draw_clusters(const std::vector<Cluster>& clusters, const std::vector<Point>& points)
+draw_clusters(const folly::fbvector<Cluster>& clusters, const folly::fbvector<Point>& points)
 {
     TCanvas* c = new TCanvas;
     
@@ -21,7 +20,7 @@ draw_clusters(const std::vector<Cluster>& clusters, const std::vector<Point>& po
         return c;
     }
     
-    std::vector<int> colours{
+    folly::fbvector<int> colours{
         TColor::GetColor("#377eb8"),
         TColor::GetColor("#ff7f00"),
         TColor::GetColor("#4daf4a"),

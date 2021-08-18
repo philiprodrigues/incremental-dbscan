@@ -5,10 +5,10 @@
 #include <cassert>
 
 namespace dbscan {
-std::vector<Hit*>
-neighbours(const std::vector<Hit*>& hits, const Hit& q, float eps)
+folly::fbvector<Hit*>
+neighbours(const folly::fbvector<Hit*>& hits, const Hit& q, float eps)
 {
-    std::vector<Hit*> ret;
+    folly::fbvector<Hit*> ret;
     for (auto const& hit : hits) {
         if (euclidean_distance(*hit, q) < eps) {
             ret.push_back(hit);
@@ -17,10 +17,10 @@ neighbours(const std::vector<Hit*>& hits, const Hit& q, float eps)
     return ret;
 }
     
-std::vector<Cluster>
-dbscan_orig(std::vector<Hit*>& hits, float eps, unsigned int minPts)
+folly::fbvector<Cluster>
+dbscan_orig(folly::fbvector<Hit*>& hits, float eps, unsigned int minPts)
 {
-    std::vector<Cluster> ret;
+    folly::fbvector<Cluster> ret;
 
     int clusterIndex = -1; // The index of the current cluster
 
@@ -28,7 +28,7 @@ dbscan_orig(std::vector<Hit*>& hits, float eps, unsigned int minPts)
         if (p->cluster != kUndefined)
             continue; // We already did this one
 
-        std::vector<Hit*> nbr = neighbours(hits, *p, eps);
+        folly::fbvector<Hit*> nbr = neighbours(hits, *p, eps);
 
         if (nbr.size() < minPts) {
             // Not enough neighbours to be a core point. Classify as noise (but
@@ -44,7 +44,7 @@ dbscan_orig(std::vector<Hit*>& hits, float eps, unsigned int minPts)
         p->cluster = clusterIndex;
         current_cluster.add_hit(p);
         // Seed set is all the neighbours of p except for p
-        std::vector<Hit*> seedSet;
+        folly::fbvector<Hit*> seedSet;
         for (auto const& n : nbr) {
             if (n != p) {
                 seedSet.push_back(n);
@@ -69,7 +69,7 @@ dbscan_orig(std::vector<Hit*>& hits, float eps, unsigned int minPts)
             q->cluster = clusterIndex;
             current_cluster.add_hit(q);
             // Neighbours of q
-            std::vector<Hit*> nbrq = neighbours(hits, *q, eps);
+            folly::fbvector<Hit*> nbrq = neighbours(hits, *q, eps);
             // If q is a core point, add its neighbours to the search list
             if (nbrq.size() >= minPts)
                 seedSet.insert(seedSet.end(), nbrq.begin(), nbrq.end());
