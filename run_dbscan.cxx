@@ -57,57 +57,119 @@ points_to_hits(const std::vector<Point>& points)
 
 //======================================================================
 bool
-compare_clusters(std::vector<dbscan::Hit*>& v1, std::vector<dbscan::Hit*>& v2)
+cluster_has_hit(const dbscan::Cluster& cluster, const dbscan::Hit* test_hit)
 {
-    assert(v1.size() == v2.size());
-
-    bool all_same = true;
-    // Map from cluster index in v1 to cluster index in v2
-    std::map<int, int> index_map;
-
-    // Noise must map to noise
-    index_map[-1]=-1;
-
-    for (size_t i = 0; i < v1.size(); ++i) {
-        dbscan::Hit* hit1 = v1[i];
-        dbscan::Hit* hit2 = v2[i];
-        if (hit1->time != hit2->time || hit1->chan != hit2->chan) {
-            std::cout << "Mismatched input vectors" << std::endl;
-            all_same = false;
-            break;
+    for(auto const& hit : cluster.hits){
+        if(hit->time == test_hit->time &&
+           hit->chan == test_hit->chan) {
+            return true;
         }
-
-        int index1 = hit1->cluster;
-        if (index1 < 0)
-            index1 = -1;
-        int index2 = hit2->cluster;
-        if (index2 < 0)
-            index2 = -1;
-
-        bool differ = false;
-        if((index1 < 0 && index2 >= 0) ||
-           (index1 >= 0 && index2 < 0)){
-            // One is noise, other is in a cluster
-            differ = true;
-        }
-        else if (index_map.count(index1)) {
-            if (index2 != index_map[index1]) {
-                differ = true;
-            }
-        } else {
-            index_map[index1] = index2;
-        }
-
-        if(differ){
-            std::cout << "(" << hit1->time << ", " << hit1->chan
-                      << ") has cluster " << hit1->cluster << " but ("
-                      << hit2->time << ", " << hit2->chan
-                      << ") has cluster " << hit2->cluster << std::endl;
-            all_same=false;
-        }
-
     }
-    return all_same;
+    return false;
+}
+
+//======================================================================
+void print_cluster_hits(const dbscan::Cluster& cluster)
+{
+    for(auto const& hit : cluster.hits){
+        std::cout << std::hex << hit << std::dec << " " << hit->time << ", " << hit->chan << std::endl;
+    }
+}
+
+//======================================================================
+bool
+compare_clusters(std::vector<dbscan::Cluster>& clusters1, std::vector<dbscan::Cluster>& clusters2)
+{
+    bool ok=true;
+    
+    if(clusters1.size() != clusters2.size()){
+        std::cout << "clusters1 has " << clusters1.size() << " clusters but clusters2 has " << clusters2.size() << " clusters" << std::endl;
+        ok=false;
+    }
+
+    for(auto const& cluster1 : clusters1){
+        // First, find the cluster in the other list that contains the first hit from cluster1
+        const dbscan::Cluster* other_cluster=nullptr;
+        dbscan::Hit* hit1=cluster1.hits.hits[0];
+        for(auto const& cluster2 : clusters2){
+            if(cluster_has_hit(cluster2, hit1)){
+                other_cluster=&cluster2;
+                break;
+            }
+        }
+        
+        if(!other_cluster){
+            std::cout << "(" << hit1->time << ", " << hit1->chan
+                      << ") has cluster " << hit1->cluster << " but is not present in clusters2" << std::endl;
+            ok=false;
+        }
+
+        if(cluster1.hits.size() != other_cluster->hits.size()){
+            std::cout << "cluster1 has " << cluster1.hits.size() << " hits but other_cluster has " << other_cluster->hits.size() << " hits" << std::endl;
+            std::cout << "cluster1 hits:" << std::endl;
+            print_cluster_hits(cluster1);
+            std::cout << "other_cluster hits:" << std::endl;
+            print_cluster_hits(*other_cluster);
+            ok=false;
+        }
+        
+        for(auto const& hit : cluster1.hits){
+            if(!cluster_has_hit(*other_cluster, hit)){
+                std::cout << "Hit (" << hit1->time << ", " << hit1->chan << ") is present in cluster1 but not other_cluster" << std::endl;
+                ok=false;
+            }
+        }
+    }
+
+    return ok;
+    // bool all_same = true;
+    // // Map from cluster index in v1 to cluster index in v2
+    // std::map<int, int> index_map;
+
+    // // Noise must map to noise
+    // index_map[-1]=-1;
+
+    // for (size_t i = 0; i < v1.size(); ++i) {
+    //     for (size_t j = 0; j < v1[i].hits.size(); ++j) {
+    //     dbscan::Hit* hit1 = v1[i];
+    //     dbscan::Hit* hit2 = v2[i];
+    //     if (hit1->time != hit2->time || hit1->chan != hit2->chan) {
+    //         std::cout << "Mismatched input vectors" << std::endl;
+    //         all_same = false;
+    //         break;
+    //     }
+
+    //     int index1 = hit1->cluster;
+    //     if (index1 < 0)
+    //         index1 = -1;
+    //     int index2 = hit2->cluster;
+    //     if (index2 < 0)
+    //         index2 = -1;
+
+    //     bool differ = false;
+    //     if((index1 < 0 && index2 >= 0) ||
+    //        (index1 >= 0 && index2 < 0)){
+    //         // One is noise, other is in a cluster
+    //         differ = true;
+    //     }
+    //     else if (index_map.count(index1)) {
+    //         if (index2 != index_map[index1]) {
+    //             differ = true;
+    //         }
+    //     } else {
+    //         index_map[index1] = index2;
+    //     }
+
+    //     if(differ){
+    //         std::cout << "(" << hit1->time << ", " << hit1->chan
+    //                   << ") has cluster " << hit1->cluster << " but ("
+    //                   << hit2->time << ", " << hit2->chan
+    //                   << ") has cluster " << hit2->cluster << std::endl;
+    //         all_same=false;
+    //     }
+
+    // }
+    // return all_same;
 }
 
 //======================================================================
@@ -131,12 +193,14 @@ test_dbscan(std::string filename,
         return a.time < b.time;
     });
 
+    std::vector<dbscan::Cluster> clusters_orig;
     if (test) {
         // Run the naive DBSCAN implementation for comparison with the
         // incremental one
         auto hits=points_to_hits(points);
         std::cout << "Running dbscan_orig" << std::endl;
         auto clusters=dbscan::dbscan_orig(hits, eps, minPts);
+        clusters_orig=clusters;
         if(plot){
             TCanvas* c = draw_clusters(clusters, points);
             c->Print("dbscan-orig.png");
@@ -204,16 +268,16 @@ test_dbscan(std::string filename,
         c->Print("dbscan-incremental.png");
     }
 
-    // if (test) {
-    //     bool same = compare_clusters(hits, hits_inc);
-    //     if (same) {
-    //         std::cout << "dbscan_orig and incremental results matched"
-    //                   << std::endl;
-    //     } else {
-    //         std::cout << "dbscan_orig and incremental results differed"
-    //                   << std::endl;
-    //     }
-    // }
+    if (test) {
+        bool same = compare_clusters(clusters_orig, clusters);
+        if (same) {
+            std::cout << "dbscan_orig and incremental results matched"
+                      << std::endl;
+        } else {
+            std::cout << "dbscan_orig and incremental results differed"
+                      << std::endl;
+        }
+    }
 }
 
 //======================================================================
