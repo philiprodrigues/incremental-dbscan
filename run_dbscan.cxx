@@ -172,8 +172,9 @@ test_dbscan(std::string filename,
     TStopwatch ts;
     int i = 0;
     double last_real_time = 0;
+    std::vector<dbscan::Cluster> clusters;
     for (auto p : points) {
-        dbscanner.add_point(p.time, p.chan);
+        dbscanner.add_point(p.time, p.chan, &clusters);
         if (++i % 100000 == 0) {
             double real_time = ts.RealTime();
             ts.Continue();
@@ -197,6 +198,7 @@ test_dbscan(std::string filename,
     // Clock is 50 MHz, but we divided the time by 100 when we read in the hits
     double data_time = (points.back().time - points.front().time) / 50e4;
     double processing_time = ts.RealTime();
+    std::cout << "Found " << clusters.size() << " clusters total" << std::endl;
     std::cout << "Processed " << points.size() << " hits representing "
               << data_time << "s of data in " << processing_time
               << "s. Ratio=" << (data_time / processing_time) << std::endl;

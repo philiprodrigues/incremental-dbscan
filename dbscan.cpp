@@ -121,18 +121,19 @@ IncrementalDBSCAN::cluster_reachable(Hit* seed_hit, Cluster& cluster)
 }
 
 //======================================================================
-void IncrementalDBSCAN::add_point(float time, float channel)
+void
+IncrementalDBSCAN::add_point(float time, float channel, std::vector<Cluster>* completed_clusters)
 {
     Hit& new_hit=m_hit_pool[m_pool_end];
     new_hit.reset(time, channel);
     ++m_pool_end;
     if(m_pool_end==m_hit_pool.size()) m_pool_end=0;
-    add_hit(&new_hit);
+    add_hit(&new_hit, completed_clusters);
 }
     
 //======================================================================
 void
-IncrementalDBSCAN::add_hit(Hit* new_hit)
+IncrementalDBSCAN::add_hit(Hit* new_hit, std::vector<Cluster>* completed_clusters)
 {
     // TODO: this should be a member variable, not a static, in case
     // there are multiple IncrementalDBSCAN instances
@@ -244,7 +245,8 @@ IncrementalDBSCAN::add_hit(Hit* new_hit)
     }
 
 
-    // Delete any completed clusters from the list
+    // Delete any completed clusters from the list. Put them in the
+    // `completed_clusters` vector, if that vector was passed
     auto clust_it = m_clusters.begin();
     while (clust_it != m_clusters.end()) {
         Cluster& cluster = clust_it->second;
@@ -254,6 +256,10 @@ IncrementalDBSCAN::add_hit(Hit* new_hit)
         }
 
         if (cluster.completeness == Completeness::kComplete) {
+            if(completed_clusters){
+                // TODO: room for std::move here?
+                completed_clusters->push_back(cluster);
+            }
             clust_it = m_clusters.erase(clust_it);
             continue;
         } else {

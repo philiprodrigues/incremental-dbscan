@@ -66,11 +66,11 @@ public:
         }
     }
 
-    void add_point(float time, float channel);
+    void add_point(float time, float channel, std::vector<Cluster>* completed_clusters=nullptr);
     
     // Add a new hit. The hit time *must* be >= the time of all hits
     // previously added
-    void add_hit(Hit* new_hit);
+    void add_hit(Hit* new_hit, std::vector<Cluster>* completed_clusters=nullptr);
 
     void trim_hits();
 
