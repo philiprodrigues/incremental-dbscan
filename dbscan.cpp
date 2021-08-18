@@ -258,7 +258,13 @@ IncrementalDBSCAN::add_hit(Hit* new_hit, std::vector<Cluster>* completed_cluster
         if (cluster.completeness == Completeness::kComplete) {
             if(completed_clusters){
                 // TODO: room for std::move here?
-                completed_clusters->push_back(cluster);
+                //
+                // Clusters that got merged into another cluster had
+                // their hits cleared, and were set kComplete, by
+                // steal_hits
+                if(cluster.hits.size()!=0){
+                    completed_clusters->push_back(cluster);
+                }
             }
             clust_it = m_clusters.erase(clust_it);
             continue;
