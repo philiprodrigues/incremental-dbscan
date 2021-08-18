@@ -55,11 +55,19 @@ struct Cluster
 class IncrementalDBSCAN
 {
 public:
-    IncrementalDBSCAN(float eps, unsigned int minPts)
+    IncrementalDBSCAN(float eps, unsigned int minPts, size_t pool_size=100000)
         : m_eps(eps)
         , m_minPts(minPts)
-    {}
+        , m_pool_begin(0)
+        , m_pool_end(0)
+    {
+        for(size_t i=0; i<pool_size; ++i){
+            m_hit_pool.emplace_back(0,0);
+        }
+    }
 
+    void add_point(float time, float channel);
+    
     // Add a new hit. The hit time *must* be >= the time of all hits
     // previously added
     void add_hit(Hit* new_hit);
@@ -79,6 +87,8 @@ private:
 
     float m_eps;
     float m_minPts;
+    std::vector<Hit> m_hit_pool;
+    size_t m_pool_begin, m_pool_end;
     std::vector<Hit*> m_hits; // All the hits we've seen so far, in time order
     float m_latest_time{ 0 }; // The latest time of a hit in the vector of hits
     std::map<int, Cluster>

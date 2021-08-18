@@ -121,6 +121,16 @@ IncrementalDBSCAN::cluster_reachable(Hit* seed_hit, Cluster& cluster)
 }
 
 //======================================================================
+void IncrementalDBSCAN::add_point(float time, float channel)
+{
+    Hit& new_hit=m_hit_pool[m_pool_end];
+    new_hit.reset(time, channel);
+    ++m_pool_end;
+    if(m_pool_end==m_hit_pool.size()) m_pool_end=0;
+    add_hit(&new_hit);
+}
+    
+//======================================================================
 void
 IncrementalDBSCAN::add_hit(Hit* new_hit)
 {

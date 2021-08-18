@@ -19,45 +19,44 @@
 
 #include "CLI11.hpp"
 
-//======================================================================
-std::vector<dbscan::Hit*>
-get_hits(std::string name, int nhits, int nskip)
+struct Point
 {
-    std::vector<dbscan::Hit*> hits;
-    if (name == "simple") {
-        hits.push_back(new dbscan::Hit(8.3, 101));
-        hits.push_back(new dbscan::Hit(2.6, 103));
-        hits.push_back(new dbscan::Hit(5.3, 104));
-        hits.push_back(new dbscan::Hit(6.1, 105));
-        hits.push_back(new dbscan::Hit(6.8, 106));
-        hits.push_back(new dbscan::Hit(7.3, 107));
-        hits.push_back(new dbscan::Hit(7.9, 108));
-        hits.push_back(new dbscan::Hit(8.0, 109));
-        hits.push_back(new dbscan::Hit(8.7, 110));
-        hits.push_back(new dbscan::Hit(16.1, 105));
-        hits.push_back(new dbscan::Hit(16.8, 106));
-        hits.push_back(new dbscan::Hit(17.3, 107));
-        hits.push_back(new dbscan::Hit(17.9, 108));
-        hits.push_back(new dbscan::Hit(18.0, 109));
-        hits.push_back(new dbscan::Hit(18.7, 110));
-    } else {
-        std::ifstream fin(name);
-        uint64_t timestamp, first_timestamp{ 0 };
-        int channel;
-        int i = 0;
-        while (fin >> channel >> timestamp) {
-            if (first_timestamp == 0)
-                first_timestamp = timestamp;
-            if (i++ < nskip)
-                continue;
-            if (nhits > 0 && i > nskip + nhits)
-                break;
+    int chan;
+    float time;
+};
 
-            hits.push_back(
-                new dbscan::Hit((timestamp - first_timestamp) / 100, channel));
-        }
+//======================================================================
+std::vector<Point>
+get_points(std::string name, int nhits, int nskip)
+{
+    std::vector<Point> points;
+
+    std::ifstream fin(name);
+    uint64_t timestamp, first_timestamp{ 0 };
+    int channel;
+    int i = 0;
+    while (fin >> channel >> timestamp) {
+        if (first_timestamp == 0)
+            first_timestamp = timestamp;
+        if (i++ < nskip)
+            continue;
+        if (nhits > 0 && i > nskip + nhits)
+            break;
+
+        points.push_back({channel, (timestamp - first_timestamp) / 100});
     }
-    return hits;
+
+    return points;
+}
+
+std::vector<dbscan::Hit*>
+points_to_hits(const std::vector<Point>& points)
+{
+    std::vector<dbscan::Hit*> ret;
+    for(auto const& p: points){
+        ret.push_back(new dbscan::Hit(p.time, p.chan));
+    }
+    return ret;
 }
 
 //======================================================================
@@ -127,18 +126,19 @@ test_dbscan(std::string filename,
             float eps)
 {
     std::cout << "Reading hits" << std::endl;
-    auto hits = get_hits(filename, nhits, nskip);
+    auto points = get_points(filename, nhits, nskip);
     std::cout << "Sorting hits" << std::endl;
     // Sort the hits by time for the incremental DBSCAN, which
     // requires it. We'll also give regular DBSCAN the sorted hits,
     // which will make later comparisons easier
-    std::sort(hits.begin(), hits.end(), [](dbscan::Hit* a, dbscan::Hit* b) {
-        return a->time < b->time;
+    std::sort(points.begin(), points.end(), [](const Point& a, const Point& b) {
+        return a.time < b.time;
     });
 
     if (test) {
         // Run the naive DBSCAN implementation for comparison with the
         // incremental one
+        auto hits=points_to_hits(points);
         std::cout << "Running dbscan_orig" << std::endl;
         dbscan::dbscan_orig(hits, eps, minPts);
         if(plot){
@@ -147,13 +147,13 @@ test_dbscan(std::string filename,
         }
     }
 
-    // We make a copy so we can compare the output of dbscan_orig and
-    // IncrementalDBSCAN
-    std::cout << "Copying hit vector for incremental dbscan" << std::endl;
-    std::vector<dbscan::Hit*> hits_inc;
-    for (auto h : hits) {
-        hits_inc.push_back(new dbscan::Hit(h->time, h->chan));
-    }
+    // // We make a copy so we can compare the output of dbscan_orig and
+    // // IncrementalDBSCAN
+    // std::cout << "Copying hit vector for incremental dbscan" << std::endl;
+    // std::vector<dbscan::Hit*> hits_inc;
+    // for (auto h : hits) {
+    //     hits_inc.push_back(new dbscan::Hit(h->time, h->chan));
+    // }
 
 #ifdef HAVE_PROFILER
     // Start the profiler here, so the profile only measures the
@@ -172,8 +172,8 @@ test_dbscan(std::string filename,
     TStopwatch ts;
     int i = 0;
     double last_real_time = 0;
-    for (auto h : hits_inc) {
-        dbscanner.add_hit(h);
+    for (auto p : points) {
+        dbscanner.add_point(p.time, p.chan);
         if (++i % 100000 == 0) {
             double real_time = ts.RealTime();
             ts.Continue();
@@ -185,8 +185,8 @@ test_dbscan(std::string filename,
     }
 
     // Give it a far-future hit so it goes through all of the hits
-    dbscan::Hit future_hit(10000, 110);
-    dbscanner.add_hit(&future_hit);
+    Point future_point{110, 10000000};
+    dbscanner.add_point(future_point.time, future_point.chan);
     ts.Stop();
 
 #ifdef HAVE_PROFILER
@@ -195,26 +195,27 @@ test_dbscan(std::string filename,
 #endif
 
     // Clock is 50 MHz, but we divided the time by 100 when we read in the hits
-    double data_time = (hits_inc.back()->time - hits_inc.front()->time) / 50e4;
+    double data_time = (points.back().time - points.front().time) / 50e4;
     double processing_time = ts.RealTime();
-    std::cout << "Processed " << hits_inc.size() << " hits representing "
+    std::cout << "Processed " << points.size() << " hits representing "
               << data_time << "s of data in " << processing_time
               << "s. Ratio=" << (data_time / processing_time) << std::endl;
-    if (plot) {
-        TCanvas* c = dbscan::draw_clusters(hits_inc);
-        c->Print("dbscan-incremental.png");
-    }
 
-    if (test) {
-        bool same = compare_clusters(hits, hits_inc);
-        if (same) {
-            std::cout << "dbscan_orig and incremental results matched"
-                      << std::endl;
-        } else {
-            std::cout << "dbscan_orig and incremental results differed"
-                      << std::endl;
-        }
-    }
+    // if (plot) {
+    //     TCanvas* c = dbscan::draw_clusters(hits_inc);
+    //     c->Print("dbscan-incremental.png");
+    // }
+
+    // if (test) {
+    //     bool same = compare_clusters(hits, hits_inc);
+    //     if (same) {
+    //         std::cout << "dbscan_orig and incremental results matched"
+    //                   << std::endl;
+    //     } else {
+    //         std::cout << "dbscan_orig and incremental results differed"
+    //                   << std::endl;
+    //     }
+    // }
 }
 
 //======================================================================

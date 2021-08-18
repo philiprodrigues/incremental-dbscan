@@ -68,6 +68,7 @@ struct Hit
 {
     Hit(float _time, int _chan);
 
+    void reset(float _time, int _chan);
     // Add hit `other` to this hit's list of neighbours if they are
     // closer than `eps`. Return true if so
     bool add_potential_neighbour(Hit* other, float eps, int minPts);

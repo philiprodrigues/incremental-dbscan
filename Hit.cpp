@@ -3,6 +3,7 @@
 #include <algorithm>
 
 namespace dbscan {
+
 //======================================================================
 HitSet::HitSet()
 {
@@ -26,11 +27,21 @@ HitSet::insert(Hit* h)
 
 //======================================================================
 Hit::Hit(float _time, int _chan)
-    : time(_time)
-    , chan(_chan)
-    , cluster(kUndefined)
-    , connectedness(Connectedness::kUndefined)
-{}
+{
+    reset(_time, _chan);
+}
+
+//======================================================================
+
+void
+Hit::reset(float _time, int _chan)
+{
+    time=_time;
+    chan=_chan;
+    cluster=kUndefined;
+    connectedness=Connectedness::kUndefined;
+    neighbours.clear();
+}
 
 //======================================================================
 
